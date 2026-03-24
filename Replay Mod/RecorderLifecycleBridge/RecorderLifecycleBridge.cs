@@ -36,13 +36,13 @@ namespace ReplayMod.RecorderLifecycleBridge
         private static void OnEnteredLevelEditor()
         {
             Plugin.logger.LogInfo("[EditorRecorder] Entered level editor.");
-            RecordManager.RecordManager.Instance.StartRecording();
+            // RecordManager.RecordManager.Instance.StartRecording();
         }
 
         private static void OnExitedLevelEditor()
         {
             Plugin.logger.LogInfo("[EditorRecorder] Exited level editor.");
-            RecordManager.RecordManager.Instance.StopRecording();
+            // RecordManager.RecordManager.Instance.StopRecording();
         }
     }
 }

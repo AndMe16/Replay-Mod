@@ -4,6 +4,8 @@ using HarmonyLib;
 using ReplayMod;
 using ReplayMod.RecorderLifecycleBridge;
 using ReplayMod.RecordManager;
+using ReplayMod.ToolbarDrawer;
+using ZeepSDK.UI;
 
 namespace Replay_Mod
 { // will be replaced by assemblyName if desired
@@ -14,6 +16,8 @@ namespace Replay_Mod
         private Harmony harmony;
 
         public static Plugin Instance { get; private set; }
+
+        private MyToolbarDrawer _toolbarDrawer;
 
         private void Awake()
         {
@@ -26,12 +30,16 @@ namespace Replay_Mod
             logger.LogInfo("Plugin com.andme.replaymod is loaded!");
 
             RecorderLifecycleBridge.Initialize();
+            _toolbarDrawer = new MyToolbarDrawer();
+            UIApi.AddToolbarDrawer(_toolbarDrawer);
         }
 
         private void OnDestroy()
         {
             RecorderLifecycleBridge.Shutdown();
             RecordManager.Instance.StopRecording();
+
+            UIApi.RemoveToolbarDrawer(_toolbarDrawer);
 
             harmony?.UnpatchSelf();
             harmony = null;
