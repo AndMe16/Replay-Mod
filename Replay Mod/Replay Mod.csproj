@@ -1,0 +1,63 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+	<PropertyGroup>
+		<TargetFramework>net472</TargetFramework>
+		<AssemblyName>ReplayMod</AssemblyName>
+		<Product>ReplayMod</Product>
+		<Version>1.0.0</Version>
+		<AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+		<LangVersion>latest</LangVersion>
+		<RestoreAdditionalProjectSources>
+			https://api.nuget.org/v3/index.json;
+			https://nuget.bepinex.dev/v3/index.json;
+			https://nuget.samboy.dev/v3/index.json
+		</RestoreAdditionalProjectSources>
+		<RootNamespace>ReplayMod</RootNamespace>
+	</PropertyGroup>
+
+	<ItemGroup>
+		<PackageReference Include="BepInEx.Analyzers" Version="1.*" PrivateAssets="all" />
+		<PackageReference Include="BepInEx.Core" Version="5.*" />
+		<PackageReference Include="BepInEx.PluginInfoProps" Version="2.*" />
+		<PackageReference Include="UnityEngine.Modules" Version="2021.3.45" IncludeAssets="compile" />
+		<PackageReference Include="Zeepkist.GameLibs" Version="*" />
+	</ItemGroup>
+
+	<ItemGroup Condition="'$(TargetFramework.TrimEnd(`0123456789`))' == 'net'">
+		<PackageReference Include="Microsoft.NETFramework.ReferenceAssemblies" Version="1.0.2" PrivateAssets="all" />
+	</ItemGroup>
+
+	<ItemGroup>
+	  <Folder Include="InternalPatches\" />
+	</ItemGroup>
+
+	<!-- Define ModDirectory based on OS -->
+	<PropertyGroup>
+		<ModDirectory>C:\Program Files (x86)\Steam\steamapps\common\Zeepkist\BepInEx\plugins\Sideloaded\Plugins\ReplayMod</ModDirectory>
+	</PropertyGroup>
+
+
+	<Target Name="PostBuild" AfterTargets="PostBuildEvent">
+		<!-- Clean existing mod directory -->
+		<RemoveDir Directories="$(ModDirectory)" />
+		<MakeDir Directories="$(ModDirectory)" />
+		
+
+		<!-- Copy main DLL + PDB -->
+		<Copy SourceFiles="$(TargetDir)ReplayMod.dll" DestinationFiles="$(ModDirectory)/ReplayMod-$(Version).dll" />
+		<Copy SourceFiles="$(TargetDir)ReplayMod.pdb" DestinationFiles="$(ModDirectory)/ReplayMod-$(Version).pdb" />
+
+		<!-- Copy Resources -->
+		<ItemGroup>
+			<ResourceFiles Include="$(ProjectDir)Resources/**/*.*" />
+		</ItemGroup>
+		<Copy SourceFiles="@(ResourceFiles)" DestinationFolder="$(ModDirectory)/Resources/%(RecursiveDir)" />
+
+		<ItemGroup>
+			<None Include=".template.config\**" Pack="true" PackagePath="content/." />
+			<None Include="**\*" Exclude="bin\**;obj\**;.template.config\**" Pack="true" PackagePath="content/." />
+		</ItemGroup>
+
+	</Target>
+
+</Project>
