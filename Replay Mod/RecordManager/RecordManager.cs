@@ -10,6 +10,7 @@ namespace ReplayMod.RecordManager
     {
         public string uid;
 
+        // Any complains with Yannic and this weird undo redo system :)
         public string beforeJson;
         public string afterJson;
 
@@ -237,6 +238,57 @@ namespace ReplayMod.RecordManager
                 wasAdded = wasAdded,
                 wasRemoved = wasRemoved
             };
+        }
+
+        private void CaptureHistoryTraversal(LEV_UndoRedo undoRedo, string eventKind)
+        {
+            if (!IsRecording)
+                return;
+
+            if (undoRedo == null)
+            {
+                Plugin.logger.LogWarning($"[EditorRecorder] CaptureHistoryTraversal skipped: undoRedo was null for {eventKind}.");
+                return;
+            }
+
+            if (CurrentSession == null)
+            {
+                Plugin.logger.LogWarning($"[EditorRecorder] CaptureHistoryTraversal skipped: no active session for {eventKind}.");
+                return;
+            }
+
+            if (undoRedo.currentHistoryPosition < 0 || undoRedo.currentHistoryPosition >= undoRedo.historyList.Count)
+            {
+                Plugin.logger.LogWarning($"[EditorRecorder] CaptureHistoryTraversal skipped: history position out of range for {eventKind} ({undoRedo.currentHistoryPosition}/{undoRedo.historyList.Count}).");
+                return;
+            }
+
+            Change_Collection changeCollection = undoRedo.historyList[undoRedo.currentHistoryPosition];
+            if (changeCollection == null)
+            {
+                Plugin.logger.LogWarning($"[EditorRecorder] CaptureHistoryTraversal skipped: target Change_Collection was null for {eventKind}.");
+                return;
+            }
+
+            RecordedEditorEvent evt = CreateRecordedEventFromChangeCollection(
+                undoRedo,
+                changeCollection,
+                fallbackSource: changeCollection.source,
+                eventKind: eventKind);
+
+            CurrentSession.events.Add(evt);
+
+            Plugin.logger.LogInfo($"[EditorRecorder] Captured {eventKind} #{evt.sequence} type={evt.changeType} source={evt.source} changes={evt.changes.Count}");
+        }
+
+        public void CaptureUndo(LEV_UndoRedo undoRedo)
+        {
+            CaptureHistoryTraversal(undoRedo, "undo");
+        }
+
+        public void CaptureRedo(LEV_UndoRedo undoRedo)
+        {
+            CaptureHistoryTraversal(undoRedo, "redo");
         }
     }
 }
