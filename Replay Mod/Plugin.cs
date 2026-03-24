@@ -5,6 +5,8 @@ using ReplayMod;
 using ReplayMod.RecorderLifecycleBridge;
 using ReplayMod.RecordManager;
 using ReplayMod.ToolbarDrawer;
+using ReplayMod.GUIDrawer;
+using ZeepSDK.Storage;
 using ZeepSDK.UI;
 
 namespace Replay_Mod
@@ -18,6 +20,9 @@ namespace Replay_Mod
         public static Plugin Instance { get; private set; }
 
         private MyToolbarDrawer _toolbarDrawer;
+        public static MyGUIDrawer _guiDrawer;
+
+        internal static IModStorage Storage;
 
         private void Awake()
         {
@@ -32,6 +37,10 @@ namespace Replay_Mod
             RecorderLifecycleBridge.Initialize();
             _toolbarDrawer = new MyToolbarDrawer();
             UIApi.AddToolbarDrawer(_toolbarDrawer);
+            _guiDrawer = new MyGUIDrawer();
+            UIApi.AddZeepGUIDrawer(_guiDrawer);
+
+            Storage = StorageApi.CreateModStorage(Instance);
         }
 
         private void OnDestroy()

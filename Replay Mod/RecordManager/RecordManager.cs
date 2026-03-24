@@ -1,4 +1,5 @@
-﻿using Replay_Mod;
+﻿using HarmonyLib;
+using Replay_Mod;
 using System;
 using System.Collections.Generic;
 using UnityEngine;
@@ -102,6 +103,18 @@ namespace ReplayMod.RecordManager
 
             IsRecording = false;
             Plugin.logger.LogInfo($"[EditorRecorder] Recording stopped. Captured {CurrentSession?.events.Count ?? 0} events.");
+
+            try
+            {
+                FilesManager.FilesManager.SaveRecordingSession(Plugin.Storage, CurrentSession, $"recording_{DateTime.Now:yyyyMMdd_HHmmss}");
+
+            }
+            catch (Exception ex)
+            {
+                Plugin.logger.LogError($"[EditorRecorder] Failed to save recording session: {ex}");
+            }
+
+            
         }
 
         public void CaptureSomethingChanged(LEV_UndoRedo undoRedo, Change_Collection whatChanged, string source)

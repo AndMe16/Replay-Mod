@@ -1,6 +1,7 @@
 ﻿using BugsnagUnity.Payload;
 using Imui.Controls;
 using Imui.Core;
+using Replay_Mod;
 using ReplayMod.RecordManager;
 using UnityEngine;
 using ZeepSDK.LevelEditor;
@@ -59,11 +60,13 @@ namespace ReplayMod.ToolbarDrawer
                         PlaybackManager.PlaybackManager.Instance.ResetToCleanEditor();
                     }
                 }
+            }
 
+            gui.Separator();
 
-                
-
-
+            if (gui.Menu("Recordings", Plugin._guiDrawer._SavesWindowOpen))
+            {
+                Plugin._guiDrawer.OpenSavesWindow();
             }
         }
     }
