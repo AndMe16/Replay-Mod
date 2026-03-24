@@ -2,6 +2,8 @@
 using BepInEx.Logging;
 using HarmonyLib;
 using ReplayMod;
+using ReplayMod.RecorderLifecycleBridge;
+using ReplayMod.RecordManager;
 
 namespace Replay_Mod
 { // will be replaced by assemblyName if desired
@@ -22,10 +24,15 @@ namespace Replay_Mod
             harmony.PatchAll();
 
             logger.LogInfo("Plugin com.andme.replaymod is loaded!");
+
+            RecorderLifecycleBridge.Initialize();
         }
 
         private void OnDestroy()
         {
+            RecorderLifecycleBridge.Shutdown();
+            RecordManager.Instance.StopRecording();
+
             harmony?.UnpatchSelf();
             harmony = null;
         }
