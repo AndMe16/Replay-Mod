@@ -59,6 +59,9 @@ namespace ReplayMod.RecordManager
     {
         public int version = 1;
         public float recordingStartRealtime;
+        public DateTime savingTime;
+        public int eventCount => events.Count;
+        public TimeSpan duration;
         public List<RecordedEditorEvent> events = new();
     }
 
@@ -106,6 +109,9 @@ namespace ReplayMod.RecordManager
 
             try
             {
+                CurrentSession.version = 1; // In case we want to bump version later and need to handle compatibility in loading.
+                CurrentSession.savingTime = DateTime.Now;
+                CurrentSession.duration = TimeSpan.FromSeconds(Time.realtimeSinceStartup - CurrentSession.recordingStartRealtime);
                 FilesManager.FilesManager.SaveRecordingSession(Plugin.Storage, CurrentSession, $"recording_{DateTime.Now:yyyyMMdd_HHmmss}");
 
             }
