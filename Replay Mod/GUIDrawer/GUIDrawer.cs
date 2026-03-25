@@ -80,6 +80,7 @@ namespace ReplayMod.GUIDrawer
                 if (gui.Button("Open", ImSizeMode.Auto))
                 {
                     Plugin.logger.LogInfo($"Opening recording {selectedRecording}");
+                    RecorderLifecycleBridge.RecorderLifecycleBridge.OpenPlaybackScene(selectedRecording);
                 }
 
                 gui.AddSpacing();
@@ -97,21 +98,7 @@ namespace ReplayMod.GUIDrawer
 
         private void RefreshFiles()
         {
-            string folderPath = Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
-            "Zeepkist",
-            "Mods",
-            Plugin.Instance.Info.Metadata.GUID);
-
-            if (!Directory.Exists(folderPath))
-            {
-                values = System.Array.Empty<string>();
-                return;
-            }
-
-            values = Directory.GetFiles(folderPath)
-                              .Select(Path.GetFileNameWithoutExtension)
-                              .ToArray();
+            values = FilesManager.FilesManager.GetAllRecordingSessions(Plugin.Storage);
         }
 
         public void OpenSavesWindow()

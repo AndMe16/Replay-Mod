@@ -12,6 +12,7 @@ using ZeepSDK.UI;
 namespace Replay_Mod
 { // will be replaced by assemblyName if desired
     [BepInPlugin("com.andme.replaymod", "ReplayMod", MyPluginInfo.PLUGIN_VERSION)]
+    [BepInDependency("ZeepSDK")]
     public class Plugin : BaseUnityPlugin
     {
         internal static ManualLogSource logger;

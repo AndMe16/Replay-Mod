@@ -1,4 +1,6 @@
 ﻿using Replay_Mod;
+using ReplayMod.GUIDrawer;
+using UnityEngine.SceneManagement;
 using ZeepSDK.LevelEditor;
 
 namespace ReplayMod.RecorderLifecycleBridge
@@ -43,6 +45,11 @@ namespace ReplayMod.RecorderLifecycleBridge
         {
             Plugin.logger.LogInfo("[EditorRecorder] Exited level editor.");
             // RecordManager.RecordManager.Instance.StopRecording();
+        }
+
+        public static void OpenPlaybackScene(string recordingName)
+        {
+            SceneManager.LoadScene("LevelEditor2");
         }
     }
 }

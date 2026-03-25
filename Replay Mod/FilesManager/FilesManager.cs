@@ -1,10 +1,20 @@
 ﻿using Replay_Mod;
+using System;
+using System.IO;
+using System.Linq;
 using ZeepSDK.Storage;
+using static UnityEngine.UIElements.StylePropertyAnimationSystem;
 
 namespace ReplayMod.FilesManager
 {
     internal static class FilesManager
     {
+        static readonly string folderPath = Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
+            "Zeepkist",
+            "Mods",
+            Plugin.Instance.Info.Metadata.GUID);
+
         public static void SaveRecordingSession(IModStorage editorRecorderStorage, RecordManager.RecordingSession session, string name)
         {
             editorRecorderStorage.SaveToJson(name, session);
@@ -35,6 +45,17 @@ namespace ReplayMod.FilesManager
             {
                 Plugin.logger.LogError($"Recording file {name} does not exist.");
             }
+        }
+
+        public static string[] GetAllRecordingSessions(IModStorage editorRecorderStorage)
+        {
+            
+            if (!Directory.Exists(folderPath))
+            {
+                return [];
+            }
+
+            return [.. Directory.GetFiles(folderPath).Select(Path.GetFileNameWithoutExtension)];
         }
     }
 }
