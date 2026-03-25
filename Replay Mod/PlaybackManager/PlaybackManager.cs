@@ -3,6 +3,7 @@ using ReplayMod.RecordManager;
 using System;
 using System.Collections.Generic;
 using UnityEngine;
+using static UnityEngine.UIElements.UIR.BestFitAllocator;
 
 namespace ReplayMod.PlaybackManager
 {
@@ -15,7 +16,10 @@ namespace ReplayMod.PlaybackManager
         public int CurrentEventIndex { get; private set; } = -1;
 
         private RecordingSession _session;
-        private LEV_UndoRedo _undoRedo;
+
+        private LEV_LevelEditorCentral central = null;
+
+        public Dictionary<string, BlockProperties> allBlocksDictionary = new Dictionary<string, BlockProperties>();
 
         public void BeginPlayback(RecordingSession session, LEV_UndoRedo undoRedo)
         {
@@ -24,15 +28,16 @@ namespace ReplayMod.PlaybackManager
                 Plugin.logger.LogWarning("[EditorRecorder] BeginPlayback failed: session was null.");
                 return;
             }
+            
+            central = GameObject.FindObjectOfType<LEV_LevelEditorCentral>();
 
-            if (undoRedo == null)
-            {
-                Plugin.logger.LogWarning("[EditorRecorder] BeginPlayback failed: undoRedo was null.");
+            if (central == null )
+            {     
+                Plugin.logger.LogWarning("[EditorRecorder] BeginPlayback failed: could not find LEV_LevelEditorCentral in the scene.");
                 return;
             }
 
             _session = session;
-            _undoRedo = undoRedo;
             CurrentEventIndex = -1;
             IsPlaying = true;
 
@@ -46,7 +51,8 @@ namespace ReplayMod.PlaybackManager
             IsPlaying = false;
             CurrentEventIndex = -1;
             _session = null;
-            _undoRedo = null;
+            central = null;
+            allBlocksDictionary.Clear();
         }
 
         public bool StepForward()
@@ -98,41 +104,15 @@ namespace ReplayMod.PlaybackManager
 
         public void ResetToCleanEditor()
         {
-            if (_undoRedo == null)
-            {
-                Plugin.logger.LogWarning("[EditorRecorder] ResetToCleanEditor failed: undoRedo is null.");
-                return;
-            }
-
-
-                RecordManager.RecordManager.Instance.SuppressCapture = true;
-
-                _undoRedo.AddAllBlocksToDictionary();
-
-                List<string> allUids = new List<string>(_undoRedo.allBlocksDictionary.Keys);
-                for (int i = 0; i < allUids.Count; i++)
-                {
-                    string uid = allUids[i];
-                    BlockProperties block = TryGetLiveBlock(uid);
-                    if (block != null)
-                    {
-                        _undoRedo.allBlocksDictionary.Remove(uid);
-                        UnityEngine.Object.Destroy(block.gameObject);
-                    }
-                }
-
-                _undoRedo.central.selection.DeselectAllBlocks(false, "PlaybackReset");
-                _undoRedo.AddAllBlocksToDictionary();
-
-                Plugin.logger.LogInfo("[EditorRecorder] Reset editor to clean state.");
-
-                RecordManager.RecordManager.Instance.SuppressCapture = false;
+            
+            CurrentEventIndex = -1;
+            allBlocksDictionary.Clear();
         }
 
         private void ApplyEvent(RecordedEditorEvent evt)
         {
             bool applyBefore = ShouldApplyBefore(evt);
-
+            central.selection.DeselectAllBlocks(false, "[ReplayMod]Playback");
             switch (evt.changeType)
             {
                 case "block":
@@ -140,7 +120,7 @@ namespace ReplayMod.PlaybackManager
                     break;
 
                 case "connection":
-                    ApplyConnectionEvent(evt, applyBefore);
+                    Plugin.logger.LogInfo("[EditorRecorder] Skipping connection events for now.");
                     break;
 
                 case "floor":
@@ -201,17 +181,11 @@ namespace ReplayMod.PlaybackManager
                 BlockProperties newBlock = CreateBlockFromJson(blockJson, uid);
                 if (newBlock != null)
                 {
-                    recreatedUids.Add(uid);
+                    recreatedUids.Add(uid); // IMPORTANT: THIS WILL BE USED FOR CONNECTIONS LATER. DON'T FORGET TO ADD THAT
                 }
             }
 
-            RefreshConnectionsForAllBlocks();
             Reselect(evt, applyBefore);
-        }
-
-        private void ApplyConnectionEvent(RecordedEditorEvent evt, bool applyBefore)
-        {
-            ApplyBlockEvent(evt, applyBefore);
         }
 
         private void ApplyFloorEvent(RecordedEditorEvent evt, bool applyBefore)
@@ -225,8 +199,7 @@ namespace ReplayMod.PlaybackManager
             RecordedSingleChange change = evt.changes[0];
             int materialIndex = applyBefore ? change.intBefore : change.intAfter;
 
-            _undoRedo.central.painter.SetLoadGroundMaterial(materialIndex);
-            Reselect(evt, applyBefore);
+            central.painter.SetLoadGroundMaterial(materialIndex);
         }
 
         private void ApplySkyboxEvent(RecordedEditorEvent evt, bool applyBefore)
@@ -251,21 +224,14 @@ namespace ReplayMod.PlaybackManager
 
             if (applyBefore)
             {
-                _undoRedo.central.skybox.simulateLofi = change.boolBefore;
-                _undoRedo.central.skybox.SetToSkybox(change.intBefore, true, customSkybox, true, false);
-                _undoRedo.central.skyboxTool.SetCurrentPage(change.int2Before);
+                central.skybox.simulateLofi = change.boolBefore;
+                central.skybox.SetToSkybox(change.intBefore, true, customSkybox, true, false);
             }
             else
             {
-                _undoRedo.central.skybox.simulateLofi = change.boolAfter;
-                _undoRedo.central.skybox.SetToSkybox(change.intAfter, true, customSkybox, true, false);
-                _undoRedo.central.skyboxTool.SetCurrentPage(change.int2After);
+                central.skybox.simulateLofi = change.boolAfter;
+                central.skybox.SetToSkybox(change.intAfter, true, customSkybox, true, false);
             }
-
-            _undoRedo.central.skyboxTool.ReloadInternalSettings();
-            _undoRedo.central.skyboxTool.DrawOptionPanels();
-
-            Reselect(evt, applyBefore);
         }
 
         private void ApplySelectionEvent(RecordedEditorEvent evt, bool applyBefore)
@@ -275,17 +241,34 @@ namespace ReplayMod.PlaybackManager
 
         private void Reselect(RecordedEditorEvent evt, bool applyBefore)
         {
-            if (_undoRedo == null || evt == null)
+            if (evt == null)
                 return;
+            List<string> targetUids;
+            List<string> selectedBlocks;
+            if (applyBefore)
+            {
+                targetUids = evt.beforeSelectionUIDs;
+                selectedBlocks = evt.afterSelectionUIDs;
+            }
+            else
+            {
+                targetUids = evt.afterSelectionUIDs;
+                selectedBlocks = evt.beforeSelectionUIDs;
+            }
 
-            List<string> targetUids = applyBefore
-                ? evt.beforeSelectionUIDs
-                : evt.afterSelectionUIDs;
+            targetUids ??= [];
+            selectedBlocks ??= [];
 
-            if (targetUids == null)
-                targetUids = new List<string>();
+            for (int i = 0; i < selectedBlocks.Count; i++)
+            {
+                string uid = selectedBlocks[i];
+                BlockProperties block = TryGetLiveBlock(uid);
+                if (block != null)
+                {
+                    central.selection.RestorePaint(block);
+                }
+            }
 
-            List<BlockProperties> blocks = new List<BlockProperties>();
 
             for (int i = 0; i < targetUids.Count; i++)
             {
@@ -293,24 +276,17 @@ namespace ReplayMod.PlaybackManager
                 BlockProperties block = TryGetLiveBlock(uid);
                 if (block != null)
                 {
-                    blocks.Add(block);
+                    central.selection.SelectionPaint(block);
                 }
             }
-
-            if (blocks.Count > 0 && _undoRedo.central.tool.currentTool != 0)
-            {
-                _undoRedo.central.tool.EnableEditTool();
-            }
-
-            _undoRedo.central.selection.UndoRedoReselection(blocks);
         }
 
         private BlockProperties TryGetLiveBlock(string uid)
         {
-            if (_undoRedo == null || string.IsNullOrEmpty(uid))
+            if (string.IsNullOrEmpty(uid))
                 return null;
 
-            if (_undoRedo.allBlocksDictionary.TryGetValue(uid, out BlockProperties block))
+            if (allBlocksDictionary.TryGetValue(uid, out BlockProperties block))
                 return block;
 
             return null;
@@ -322,18 +298,12 @@ namespace ReplayMod.PlaybackManager
             if (existing == null)
                 return;
 
-            _undoRedo.allBlocksDictionary.Remove(uid);
+            allBlocksDictionary.Remove(uid);
             UnityEngine.Object.Destroy(existing.gameObject);
         }
 
         private BlockProperties CreateBlockFromJson(BlockPropertyJSON newBlockValues, string uid)
         {
-            if (_undoRedo == null)
-            {
-                Plugin.logger.LogWarning("[EditorRecorder] CreateBlockFromJson failed: undoRedo is null.");
-                return null;
-            }
-
             if (newBlockValues == null)
             {
                 Plugin.logger.LogWarning("[EditorRecorder] CreateBlockFromJson failed: newBlockValues is null.");
@@ -342,19 +312,18 @@ namespace ReplayMod.PlaybackManager
 
             try
             {
-                BlockProperties prefab = _undoRedo.central.manager.loader.globalBlockList.blocks[newBlockValues.i];
+                BlockProperties prefab = central.manager.loader.globalBlockList.blocks[newBlockValues.i];
                 BlockProperties block = UnityEngine.Object.Instantiate(prefab);
 
                 block.gameObject.name = prefab.gameObject.name;
                 block.CreateBlock();
-                block.DrawDebugUID();
                 block.properties.Clear();
                 block.isEditor = true;
                 block.UID = uid;
                 block.LoadProperties_v15(newBlockValues, false);
                 block.isLoading = false;
 
-                _undoRedo.AddBlockToDictionary(uid, block);
+                AddBlockToDictionary(uid, block);
                 StaticConnectorTracker.UpdateBlockUIDInTracker(block.UID, block);
 
                 return block;
@@ -366,39 +335,14 @@ namespace ReplayMod.PlaybackManager
             }
         }
 
-        private void RefreshConnectionsForAllBlocks()
+        public void AddBlockToDictionary(string uid, BlockProperties theNewBlock)
         {
-            if (_undoRedo == null)
+            if (this.allBlocksDictionary.ContainsKey(uid))
+            {
+                this.allBlocksDictionary[uid] = theNewBlock;
                 return;
-
-            try
-            {
-                _undoRedo.AddAllBlocksToDictionary();
-
-                foreach (KeyValuePair<string, BlockProperties> kvp in _undoRedo.allBlocksDictionary)
-                {
-                    BlockProperties block = kvp.Value;
-                    if (block == null)
-                        continue;
-
-                    block.LoadOnlyPropertyScripts();
-
-                    List<BlockEdit_v18_Connector_Base> connectors =
-                        StaticConnectorTracker.GetAllBlockEditV18ConnectorsOnThisBlock(kvp.Key);
-
-                    if (connectors == null)
-                        continue;
-
-                    for (int i = 0; i < connectors.Count; i++)
-                    {
-                        connectors[i].ForceRedrawConnectionVisualizers();
-                    }
-                }
             }
-            catch (Exception ex)
-            {
-                Plugin.logger.LogWarning($"[EditorRecorder] RefreshConnectionsForAllBlocks encountered an issue: {ex}");
-            }
+            this.allBlocksDictionary.Add(uid, theNewBlock);
         }
     }
 }
