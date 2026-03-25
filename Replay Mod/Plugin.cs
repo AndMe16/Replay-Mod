@@ -2,10 +2,10 @@
 using BepInEx.Logging;
 using HarmonyLib;
 using ReplayMod;
+using ReplayMod.GUIDrawer;
 using ReplayMod.RecorderLifecycleBridge;
 using ReplayMod.RecordManager;
 using ReplayMod.ToolbarDrawer;
-using ReplayMod.GUIDrawer;
 using ZeepSDK.Storage;
 using ZeepSDK.UI;
 
@@ -42,6 +42,7 @@ namespace Replay_Mod
             UIApi.AddZeepGUIDrawer(_guiDrawer);
 
             Storage = StorageApi.CreateModStorage(Instance);
+
         }
 
         private void OnDestroy()
