@@ -14,6 +14,8 @@ namespace ReplayMod.RecorderLifecycleBridge
         private static bool isPlayback = false;
         private static bool isInPlaybackScene = false;
 
+        private static string currentRecordingName = null;
+
         public static void Initialize()
         {
             if (_initialized)
@@ -27,17 +29,17 @@ namespace ReplayMod.RecorderLifecycleBridge
             Plugin.logger.LogInfo("[EditorRecorder] Subscribed to level editor lifecycle events.");
         }
 
-        private static void OnEnteredLevelEditor(Scene scene, LoadSceneMode moce)
+        private static void OnEnteredLevelEditor(Scene scene, LoadSceneMode mode)
         {
             if (scene.name == "LevelEditor2")
             {
                 if (isPlayback)
                 {
                     isPlayback = false;
-                    Plugin.logger.LogInfo("[EditorRecorder] Starting playback.");
                     DisableOriginalUI();
                     isInPlaybackScene = true;
                     new GameObject("PauseMenuHandler").AddComponent<PauseMenuHandler.PauseMenuHandler>();
+                    LoadAndBeginPlayback();
                 }
             }            
         }
@@ -47,6 +49,10 @@ namespace ReplayMod.RecorderLifecycleBridge
             if (scene.name == "LevelEditor2")
             {
                 isInPlaybackScene = false;
+                if (PlaybackManager.PlaybackManager.Instance.IsPlaying)
+                {
+                    PlaybackManager.PlaybackManager.Instance.StopPlayback();
+                }
                 GameObject.Destroy(GameObject.Find("PauseMenuHandler"));
             }
         }
@@ -68,6 +74,18 @@ namespace ReplayMod.RecorderLifecycleBridge
         {
             isPlayback = true;
             SceneManager.LoadScene("LevelEditor2");
+            currentRecordingName = recordingName;
+        }
+
+        private static void LoadAndBeginPlayback()
+        {
+            var session = FilesManager.FilesManager.LoadRecordingSession(Plugin.Storage, currentRecordingName);
+
+            var central = GameObject.FindObjectOfType<LEV_LevelEditorCentral>();
+            if (central != null)
+            {
+                PlaybackManager.PlaybackManager.Instance.BeginPlayback(session, central.undoRedo);
+            }
         }
 
         private static void  DisableOriginalUI()

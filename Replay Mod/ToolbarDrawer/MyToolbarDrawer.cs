@@ -29,26 +29,7 @@ namespace ReplayMod.ToolbarDrawer
                     }
                 }
 
-                gui.Separator();
-
-                if (gui.Menu("Start/Stop Playback", PlaybackManager.PlaybackManager.Instance.IsPlaying))
-                {
-
-                    if (PlaybackManager.PlaybackManager.Instance.IsPlaying)
-                    {
-                        PlaybackManager.PlaybackManager.Instance.StopPlayback();
-                    }
-                    else
-                    {
-                        var central = GameObject.FindObjectOfType<LEV_LevelEditorCentral>();
-                        if (central != null)
-                        {
-                            PlaybackManager.PlaybackManager.Instance.BeginPlayback(RecordManager.RecordManager.Instance.CurrentSession, central.undoRedo);
-                        }
-                    }
-                }
-
-                if (PlaybackManager.PlaybackManager.Instance.IsPlaying)
+                else if (PlaybackManager.PlaybackManager.Instance.IsPlaying)
                 {
                     if (gui.Menu("Step Forward"))
                     {
