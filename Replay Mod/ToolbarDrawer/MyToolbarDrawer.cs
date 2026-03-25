@@ -17,19 +17,21 @@ namespace ReplayMod.ToolbarDrawer
         {
             if (LevelEditorApi.IsInLevelEditor)
             {
-                if (gui.Menu("Start/Stop Recording", RecordManager.RecordManager.Instance.IsRecording))
+                if (!PlaybackManager.PlaybackManager.Instance.IsPlaying)
                 {
-                    if (RecordManager.RecordManager.Instance.IsRecording)
+                    if (gui.Menu("Start/Stop Recording", RecordManager.RecordManager.Instance.IsRecording))
                     {
-                        RecordManager.RecordManager.Instance.StopRecording();
-                    }
-                    else
-                    {
-                        RecordManager.RecordManager.Instance.StartRecording();
+                        if (RecordManager.RecordManager.Instance.IsRecording)
+                        {
+                            RecordManager.RecordManager.Instance.StopRecording();
+                        }
+                        else
+                        {
+                            RecordManager.RecordManager.Instance.StartRecording();
+                        }
                     }
                 }
-
-                else if (PlaybackManager.PlaybackManager.Instance.IsPlaying)
+                else
                 {
                     if (gui.Menu("Step Forward"))
                     {

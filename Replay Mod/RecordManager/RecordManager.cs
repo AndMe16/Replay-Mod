@@ -62,6 +62,7 @@ namespace ReplayMod.RecordManager
         public DateTime savingTime;
         public int eventCount => events.Count;
         public TimeSpan duration;
+        public v15LevelJSON levelStateAtStart;
         public List<RecordedEditorEvent> events = new();
     }
 
@@ -84,10 +85,15 @@ namespace ReplayMod.RecordManager
                 return;
             }
 
+            LEV_LevelEditorCentral central = GameObject.FindObjectOfType<LEV_LevelEditorCentral>();
+
+            if (central == null )
+                return;
 
             CurrentSession = new RecordingSession
             {
-                recordingStartRealtime = Time.realtimeSinceStartup
+                recordingStartRealtime = Time.realtimeSinceStartup,
+                levelStateAtStart = central.saveload.ConvertCurrentLevelStateToJSON_v15()
             };
 
             _nextSequence = 0;
