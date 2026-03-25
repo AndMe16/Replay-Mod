@@ -81,6 +81,7 @@ namespace ReplayMod.GUIDrawer
                 {
                     Plugin.logger.LogInfo($"Opening recording {selectedRecording}");
                     RecorderLifecycleBridge.RecorderLifecycleBridge.OpenPlaybackScene(selectedRecording);
+                    _SavesWindowOpen = false;
                 }
 
                 gui.AddSpacing();
@@ -89,7 +90,7 @@ namespace ReplayMod.GUIDrawer
                 {
                     Plugin.logger.LogInfo($"Deleting recording {selectedRecording}");
                     FilesManager.FilesManager.DeleteRecordingSession(Plugin.Storage, selectedRecording);
-                    OpenSavesWindow();
+                    RefreshUI();
                 }
 
                 gui.EndHorizontal();
@@ -103,9 +104,14 @@ namespace ReplayMod.GUIDrawer
 
         public void OpenSavesWindow()
         {
+            RefreshUI();
+            _SavesWindowOpen = true;
+        }
+
+        public void RefreshUI()
+        {
             RefreshFiles();
             selectedRecording = null;
-            _SavesWindowOpen = true;
             _selectedIndex = -1;
         }
     }
