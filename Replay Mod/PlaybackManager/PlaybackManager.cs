@@ -23,7 +23,7 @@ namespace ReplayMod.PlaybackManager
         private float _timelinePlaybackStartRealtime;
         private float _timelinePlaybackStartEventTime;
 
-        public float CurrentSessionTime { get; private set; } = 0f;
+        public float _currentSessionTime = 0f;
 
         private float _speedMultiplier = 1f;
 
@@ -60,7 +60,7 @@ namespace ReplayMod.PlaybackManager
             CurrentEventIndex = -1;
             IsPlaying = true;
             IsFollowingTimeline = false;
-            CurrentSessionTime = 0;
+            _currentSessionTime = 0;
             _speedMultiplier = 1f;
 
             Plugin.logger.LogInfo($"[EditorRecorder] Started playback. Event count: {Session.events.Count}");
@@ -170,12 +170,11 @@ namespace ReplayMod.PlaybackManager
 
             try
             {
-                RecordManager.RecordManager.Instance.SuppressCapture = true;
                 ApplyEvent(evt);
                 CurrentEventIndex = nextIndex;
                 if (!IsFollowingTimeline)
                 {
-                    CurrentSessionTime = GetEventTime(CurrentEventIndex);
+                    _currentSessionTime = GetEventTime(CurrentEventIndex);
                 }
             }
             catch (Exception ex)
@@ -183,8 +182,6 @@ namespace ReplayMod.PlaybackManager
                 Plugin.logger.LogError($"[EditorRecorder] Failed to apply event at index {nextIndex}: {ex}");
                 return false;
             }
-
-            RecordManager.RecordManager.Instance.SuppressCapture = false;
 
             Plugin.logger.LogInfo($"[EditorRecorder] Applied event index={CurrentEventIndex} seq={evt.sequence} kind={evt.eventKind} type={evt.changeType}");
             return true;
@@ -220,14 +217,12 @@ namespace ReplayMod.PlaybackManager
 
             try
             {
-                RecordManager.RecordManager.Instance.SuppressCapture = true;
-
                 ApplyEvent(evt, inverse: true);
 
                 CurrentEventIndex--;
                 if (!IsFollowingTimeline)
                 {
-                    CurrentSessionTime = GetEventTime(CurrentEventIndex);
+                    _currentSessionTime = GetEventTime(CurrentEventIndex);
                 }
             }
             catch (Exception ex)
@@ -235,8 +230,6 @@ namespace ReplayMod.PlaybackManager
                 Plugin.logger.LogError($"[EditorRecorder] Failed to revert event at index {CurrentEventIndex}: {ex}");
                 return false;
             }
-
-            RecordManager.RecordManager.Instance.SuppressCapture = false;
 
             return true;
         }
@@ -256,7 +249,7 @@ namespace ReplayMod.PlaybackManager
             }
 
             _timelinePlaybackStartRealtime = Time.realtimeSinceStartup;
-            _timelinePlaybackStartEventTime = CurrentSessionTime;
+            _timelinePlaybackStartEventTime = _currentSessionTime;
 
             IsFollowingTimeline = true;
             Plugin.logger.LogInfo("[EditorRecorder] Following timeline in realtime.");
@@ -268,7 +261,7 @@ namespace ReplayMod.PlaybackManager
                 return;
 
             float elapsedRealtime = Time.realtimeSinceStartup - _timelinePlaybackStartRealtime;
-            CurrentSessionTime = _timelinePlaybackStartEventTime + elapsedRealtime * _speedMultiplier;
+            _currentSessionTime = _timelinePlaybackStartEventTime + elapsedRealtime * _speedMultiplier;
 
             IsFollowingTimeline = false;
             Plugin.logger.LogInfo("[EditorRecorder] Realtime timeline playback paused.");
@@ -281,8 +274,8 @@ namespace ReplayMod.PlaybackManager
 
             float elapsedRealtime = Time.realtimeSinceStartup - _timelinePlaybackStartRealtime;
             float scaledElapsed = elapsedRealtime * _speedMultiplier;
-            CurrentSessionTime = (_timelinePlaybackStartEventTime + scaledElapsed);
-            float targetSessionTime = CurrentSessionTime;
+            _currentSessionTime = (_timelinePlaybackStartEventTime + scaledElapsed);
+            float targetSessionTime = _currentSessionTime;
             const float epsilon = 0.0001f;
 
             while (CurrentEventIndex + 1 < Session.events.Count)
@@ -586,11 +579,14 @@ namespace ReplayMod.PlaybackManager
 
         private void OnSpeedMultiplierChanged()
         {
-            // Re-anchor time to avoid jumps
-            CurrentSessionTime = _timelinePlaybackStartEventTime +
+
+            if (!IsFollowingTimeline)
+                return;
+
+            _currentSessionTime = _timelinePlaybackStartEventTime +
                 (Time.realtimeSinceStartup - _timelinePlaybackStartRealtime) * _speedMultiplier;
 
-            _timelinePlaybackStartEventTime = CurrentSessionTime;
+            _timelinePlaybackStartEventTime = _currentSessionTime;
             _timelinePlaybackStartRealtime = Time.realtimeSinceStartup;
         }
 
@@ -599,6 +595,75 @@ namespace ReplayMod.PlaybackManager
             return index >= 0 && index < Session.events.Count
                 ? Session.events[index].timeSinceStart
                 : 0f;
+        }
+
+        public void ScrubToTime(float targetTime)
+        {
+            StopFollowingTimeline();
+
+            int targetIndex = FindEventIndexForTime(targetTime);
+
+            if (targetIndex > CurrentEventIndex)
+            {
+                // Step forward
+                while (CurrentEventIndex < targetIndex)
+                {
+                    if (!StepForward())
+                        break;
+                }
+            }
+            else if (targetIndex < CurrentEventIndex)
+            {
+                // Step backward
+                while (CurrentEventIndex > targetIndex)
+                {
+                    if (!StepBackward())
+                        break;
+                }
+            }
+
+            _currentSessionTime = targetTime;
+        }
+
+        private int FindEventIndexForTime(float targetTime)
+        {
+            int left = 0;
+            int right = Session.events.Count - 1;
+            int result = -1;
+
+            while (left <= right)
+            {
+                int mid = (left + right) / 2;
+                var evt = Session.events[mid];
+
+                if (evt == null)
+                {
+                    int temp = mid;
+                    while (temp >= left && Session.events[temp] == null)
+                        temp--;
+
+                    if (temp < left)
+                    {
+                        left = mid + 1;
+                        continue;
+                    }
+
+                    mid = temp;
+                    evt = Session.events[mid];
+                }
+
+                if (evt.timeSinceStart <= targetTime)
+                {
+                    result = mid;
+                    left = mid + 1;
+                }
+                else
+                {
+                    right = mid - 1;
+                }
+            }
+
+            return result;
         }
     }
 }

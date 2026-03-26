@@ -42,10 +42,15 @@ namespace ReplayMod.GUIDrawer
         {
             ImRect rect = new ImRect(0,0, Screen.width*0.3f, Screen.height * 0.2f);
 
-            if (_PlaybackWindowOpen && gui.BeginWindow("Playback Controls", ref _PlaybackWindowOpen, rect))
+            if (_PlaybackWindowOpen && gui.BeginWindow("Playback Controls", ref _PlaybackWindowOpen, rect, ImWindowFlag.NoCloseButton))
             {
-                CustomSliderHeader(gui, "Time", PlaybackManager.PlaybackManager.Instance.CurrentSessionTime);
-                gui.Slider(PlaybackManager.PlaybackManager.Instance.CurrentSessionTime, 0, ((float)PlaybackManager.PlaybackManager.Instance.Session.duration.TotalSeconds));
+                var manager = PlaybackManager.PlaybackManager.Instance;
+
+                CustomSliderHeader(gui, "Time", PlaybackManager.PlaybackManager.Instance._currentSessionTime);
+                if(gui.Slider(ref PlaybackManager.PlaybackManager.Instance._currentSessionTime, 0, ((float)PlaybackManager.PlaybackManager.Instance.Session.duration.TotalSeconds)))
+                {
+                    PlaybackManager.PlaybackManager.Instance.ScrubToTime(PlaybackManager.PlaybackManager.Instance._currentSessionTime);
+                }
 
                 gui.BeginHorizontal();
 
@@ -65,7 +70,6 @@ namespace ReplayMod.GUIDrawer
 
                 gui.AddSpacing();
 
-                var manager = PlaybackManager.PlaybackManager.Instance;
                 float speed = manager.SpeedMultiplier;
                 gui.NumericEdit(ref speed, step: 0.25f, size: new ImSize(gui.GetLayoutWidth()*0.3f, gui.GetRowHeight()), flags: ImNumericEditFlag.PlusMinus, format: "F2" , min:0.25f, max: 10);
                 manager.SpeedMultiplier = speed;

@@ -74,8 +74,6 @@ namespace ReplayMod.RecordManager
 
         private int _nextSequence;
 
-        public bool SuppressCapture { get; set; }
-
         public void StartRecording()
         {
             if (IsRecording)
@@ -131,9 +129,6 @@ namespace ReplayMod.RecordManager
         public void CaptureSomethingChanged(LEV_UndoRedo undoRedo, Change_Collection whatChanged, string source)
         {
             if (!IsRecording)
-                return;
-
-            if (SuppressCapture)
                 return;
 
             if (undoRedo == null)
@@ -272,9 +267,6 @@ namespace ReplayMod.RecordManager
         private void CaptureHistoryTraversal(LEV_UndoRedo undoRedo, string eventKind)
         {
             if (!IsRecording)
-                return;
-
-            if (SuppressCapture)
                 return;
 
             if (undoRedo == null)
