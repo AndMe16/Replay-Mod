@@ -93,7 +93,7 @@ namespace ReplayMod.RecorderLifecycleBridge
         private static void LoadAndBeginPlayback()
         {
             var session = FilesManager.FilesManager.LoadRecordingSession(Plugin.Storage, currentRecordingName);
-            PlaybackManager.PlaybackManager.Instance.BeginPlayback(session, central.undoRedo);
+            PlaybackManager.PlaybackManager.Instance.BeginPlayback(session);
         }
 
         private static void DisableOriginalUI()
