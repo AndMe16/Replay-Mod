@@ -207,7 +207,15 @@ namespace ReplayMod.PlaybackManager
             while (CurrentEventIndex + 1 < _session.events.Count)
             {
                 RecordedEditorEvent nextEvent = _session.events[CurrentEventIndex + 1];
-                if (nextEvent == null || nextEvent.timeSinceStart > targetSessionTime + epsilon)
+                if (nextEvent == null)
+                {
+                    int skippedIndex = CurrentEventIndex + 1;
+                    Plugin.logger.LogWarning($"[EditorRecorder] Event at index {skippedIndex} was null during realtime follow. Skipping.");
+                    CurrentEventIndex = skippedIndex;
+                    continue;
+                }
+
+                if (nextEvent.timeSinceStart > targetSessionTime + epsilon)
                     break;
 
                 if (!StepForward())
