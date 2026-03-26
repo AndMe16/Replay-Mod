@@ -1,4 +1,5 @@
 ﻿using Replay_Mod;
+using ReplayMod.PlaybackManager;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 
@@ -44,6 +45,7 @@ namespace ReplayMod.RecorderLifecycleBridge
                     DisableOriginalUI();
                     isInPlaybackScene = true;
                     new GameObject("PauseMenuHandler").AddComponent<PauseMenuHandler.PauseMenuHandler>();
+                    new GameObject("PlaybackController").AddComponent<PlaybackController>();
                     LoadAndBeginPlayback();
                 }
             }

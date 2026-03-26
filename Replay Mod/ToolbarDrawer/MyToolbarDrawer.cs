@@ -28,25 +28,6 @@ namespace ReplayMod.ToolbarDrawer
                         }
                     }
                 }
-                else
-                {
-                    if (gui.Menu("Step Forward"))
-                    {
-                        PlaybackManager.PlaybackManager.Instance.StepForward();
-                    }
-
-                    if (gui.Menu("Follow Timeline", PlaybackManager.PlaybackManager.Instance.IsFollowingTimeline))
-                    {
-                        if (PlaybackManager.PlaybackManager.Instance.IsFollowingTimeline)
-                        {
-                            PlaybackManager.PlaybackManager.Instance.StopFollowingTimeline();
-                        }
-                        else
-                        {
-                            PlaybackManager.PlaybackManager.Instance.StartFollowingTimeline();
-                        }
-                    }
-                }
             }
 
             gui.Separator();

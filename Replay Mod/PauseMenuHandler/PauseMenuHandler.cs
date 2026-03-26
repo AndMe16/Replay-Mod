@@ -15,7 +15,6 @@ namespace ReplayMod.PauseMenuHandler
         void Update()
         {
             if (central == null) return;
-            PlaybackManager.PlaybackManager.Instance.UpdateRealtimePlayback();
 
             if ((central.input.Escape.buttonDown || central.input.MenuPause.buttonDown) &&
                 (central.pause.CurrentOpenSettingsUI == null || !central.pause.CurrentOpenSettingsUI.IsOpen) &&

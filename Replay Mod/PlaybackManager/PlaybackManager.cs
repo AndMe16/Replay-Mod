@@ -15,13 +15,30 @@ namespace ReplayMod.PlaybackManager
         public bool IsFollowingTimeline { get; private set; }
         public int CurrentEventIndex { get; private set; } = -1;
 
-        private RecordingSession _session;
+        public RecordingSession Session { get; private set; }
 
         private LEV_LevelEditorCentral central = null;
 
         public Dictionary<string, BlockProperties> allBlocksDictionary = new Dictionary<string, BlockProperties>();
         private float _timelinePlaybackStartRealtime;
         private float _timelinePlaybackStartEventTime;
+
+        public float CurrentSessionTime { get; private set; } = 0f;
+
+        private float _speedMultiplier = 1f;
+
+        public float SpeedMultiplier
+        {
+            get => _speedMultiplier;
+            set
+            {
+                if (Mathf.Approximately(_speedMultiplier, value))
+                    return;
+
+                OnSpeedMultiplierChanged();
+                _speedMultiplier = value;
+            }
+        }
 
         public void BeginPlayback(RecordingSession session)
         {
@@ -39,19 +56,23 @@ namespace ReplayMod.PlaybackManager
                 return;
             }
 
-            _session = session;
+            Session = session;
             CurrentEventIndex = -1;
             IsPlaying = true;
             IsFollowingTimeline = false;
+            CurrentSessionTime = 0;
+            _speedMultiplier = 1f;
 
-            Plugin.logger.LogInfo($"[EditorRecorder] Started playback. Event count: {_session.events.Count}");
+            Plugin.logger.LogInfo($"[EditorRecorder] Started playback. Event count: {Session.events.Count}");
 
             LoadlevelStateAtStart();
+
+            Plugin._guiDrawer.OpenPlaybackWindow();
         }
 
         private void LoadlevelStateAtStart()
         {
-            if (_session == null)
+            if (Session == null)
                 return;
 
             PrimeGeneralLevelLoader();
@@ -77,7 +98,7 @@ namespace ReplayMod.PlaybackManager
             central.manager.loader.PrimeGeneric("PrimeForLevelEditor()_v15");
             central.manager.loader.loadType = GeneralLevelLoader.GameEditorSwitch.editor;
             central.manager.loader.skybox = central.saveload.skybox;
-            central.manager.loader.levelJSON = _session.levelStateAtStart;
+            central.manager.loader.levelJSON = Session.levelStateAtStart;
             central.manager.loader.newCentral = central;
 
             central.manager.loader.levelJSON.editcam.euler = new CV3(central.cam.cameraTransform.eulerAngles);
@@ -111,9 +132,11 @@ namespace ReplayMod.PlaybackManager
             IsPlaying = false;
             IsFollowingTimeline = false;
             CurrentEventIndex = -1;
-            _session = null;
+            Session = null;
             central = null;
             allBlocksDictionary.Clear();
+
+            Plugin._guiDrawer.ClosePlaybackWindow();
         }
 
         public bool StepForward()
@@ -124,20 +147,20 @@ namespace ReplayMod.PlaybackManager
                 return false;
             }
 
-            if (_session == null)
+            if (Session == null)
             {
                 Plugin.logger.LogWarning("[EditorRecorder] StepForward failed: session is null.");
                 return false;
             }
 
             int nextIndex = CurrentEventIndex + 1;
-            if (nextIndex >= _session.events.Count)
+            if (nextIndex >= Session.events.Count)
             {
                 Plugin.logger.LogInfo("[EditorRecorder] Reached end of playback.");
                 return false;
             }
 
-            RecordedEditorEvent evt = _session.events[nextIndex];
+            RecordedEditorEvent evt = Session.events[nextIndex];
             if (evt == null)
             {
                 Plugin.logger.LogWarning($"[EditorRecorder] Event at index {nextIndex} was null.");
@@ -165,22 +188,20 @@ namespace ReplayMod.PlaybackManager
 
         public void StartFollowingTimeline()
         {
-            if (!IsPlaying || _session == null)
+            if (!IsPlaying || Session == null)
             {
                 Plugin.logger.LogWarning("[EditorRecorder] StartFollowingTimeline ignored: playback is not active.");
                 return;
             }
 
-            if (CurrentEventIndex + 1 >= _session.events.Count)
+            if (CurrentEventIndex + 1 >= Session.events.Count)
             {
                 Plugin.logger.LogInfo("[EditorRecorder] StartFollowingTimeline ignored: no remaining events.");
                 return;
             }
 
             _timelinePlaybackStartRealtime = Time.realtimeSinceStartup;
-            _timelinePlaybackStartEventTime = CurrentEventIndex >= 0
-                ? _session.events[CurrentEventIndex].timeSinceStart
-                : 0f;
+            _timelinePlaybackStartEventTime = CurrentSessionTime;
 
             IsFollowingTimeline = true;
             Plugin.logger.LogInfo("[EditorRecorder] Following timeline in realtime.");
@@ -191,22 +212,27 @@ namespace ReplayMod.PlaybackManager
             if (!IsFollowingTimeline)
                 return;
 
+            float elapsedRealtime = Time.realtimeSinceStartup - _timelinePlaybackStartRealtime;
+            CurrentSessionTime = _timelinePlaybackStartEventTime + elapsedRealtime * _speedMultiplier;
+
             IsFollowingTimeline = false;
             Plugin.logger.LogInfo("[EditorRecorder] Realtime timeline playback paused.");
         }
 
         public void UpdateRealtimePlayback()
         {
-            if (!IsPlaying || !IsFollowingTimeline || _session == null)
+            if (!IsPlaying || !IsFollowingTimeline || Session == null)
                 return;
 
             float elapsedRealtime = Time.realtimeSinceStartup - _timelinePlaybackStartRealtime;
-            float targetSessionTime = _timelinePlaybackStartEventTime + elapsedRealtime;
+            float scaledElapsed = elapsedRealtime * _speedMultiplier;
+            CurrentSessionTime = (_timelinePlaybackStartEventTime + scaledElapsed);
+            float targetSessionTime = CurrentSessionTime;
             const float epsilon = 0.0001f;
 
-            while (CurrentEventIndex + 1 < _session.events.Count)
+            while (CurrentEventIndex + 1 < Session.events.Count)
             {
-                RecordedEditorEvent nextEvent = _session.events[CurrentEventIndex + 1];
+                RecordedEditorEvent nextEvent = Session.events[CurrentEventIndex + 1];
                 if (nextEvent == null)
                 {
                     int skippedIndex = CurrentEventIndex + 1;
@@ -225,7 +251,7 @@ namespace ReplayMod.PlaybackManager
                 }
             }
 
-            if (CurrentEventIndex + 1 >= _session.events.Count)
+            if (targetSessionTime >= Session.duration.TotalSeconds)
             {
                 StopFollowingTimeline();
                 Plugin.logger.LogInfo("[EditorRecorder] Realtime timeline playback reached the end.");
@@ -497,6 +523,16 @@ namespace ReplayMod.PlaybackManager
                 return;
             }
             this.allBlocksDictionary.Add(uid, theNewBlock);
+        }
+
+        private void OnSpeedMultiplierChanged()
+        {
+            // Re-anchor time to avoid jumps
+            CurrentSessionTime = _timelinePlaybackStartEventTime +
+                (Time.realtimeSinceStartup - _timelinePlaybackStartRealtime) * _speedMultiplier;
+
+            _timelinePlaybackStartEventTime = CurrentSessionTime;
+            _timelinePlaybackStartRealtime = Time.realtimeSinceStartup;
         }
     }
 }
