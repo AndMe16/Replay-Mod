@@ -16,6 +16,8 @@ namespace ReplayMod.RecorderLifecycleBridge
 
         private static string currentRecordingName = null;
 
+        private static LEV_LevelEditorCentral central;
+
         public static void Initialize()
         {
             if (_initialized)
@@ -36,6 +38,12 @@ namespace ReplayMod.RecorderLifecycleBridge
                 if (isPlayback)
                 {
                     isPlayback = false;
+
+                    central = GameObject.FindObjectOfType<LEV_LevelEditorCentral>();
+
+                    if (central == null )
+                        return;
+                    DisableSelection();
                     DisableOriginalUI();
                     isInPlaybackScene = true;
                     new GameObject("PauseMenuHandler").AddComponent<PauseMenuHandler.PauseMenuHandler>();
@@ -44,11 +52,19 @@ namespace ReplayMod.RecorderLifecycleBridge
             }            
         }
 
+        private static void DisableSelection()
+        {
+            central.click.onClickBuilding.RemoveAllListeners();
+            central.click.onClickNothing.RemoveAllListeners();
+        }
+
         private static void OnExitedLevelEditor(Scene scene)
         {
             if (scene.name == "LevelEditor2")
             {
                 isInPlaybackScene = false;
+                central = null;
+
                 if (PlaybackManager.PlaybackManager.Instance.IsPlaying)
                 {
                     PlaybackManager.PlaybackManager.Instance.StopPlayback();
@@ -80,12 +96,7 @@ namespace ReplayMod.RecorderLifecycleBridge
         private static void LoadAndBeginPlayback()
         {
             var session = FilesManager.FilesManager.LoadRecordingSession(Plugin.Storage, currentRecordingName);
-
-            var central = GameObject.FindObjectOfType<LEV_LevelEditorCentral>();
-            if (central != null)
-            {
-                PlaybackManager.PlaybackManager.Instance.BeginPlayback(session, central.undoRedo);
-            }
+            PlaybackManager.PlaybackManager.Instance.BeginPlayback(session, central.undoRedo);
         }
 
         private static void  DisableOriginalUI()
