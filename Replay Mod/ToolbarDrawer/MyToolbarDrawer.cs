@@ -35,6 +35,18 @@ namespace ReplayMod.ToolbarDrawer
                         PlaybackManager.PlaybackManager.Instance.StepForward();
                     }
 
+                    if (gui.Menu("Follow Timeline", PlaybackManager.PlaybackManager.Instance.IsFollowingTimeline))
+                    {
+                        if (PlaybackManager.PlaybackManager.Instance.IsFollowingTimeline)
+                        {
+                            PlaybackManager.PlaybackManager.Instance.StopFollowingTimeline();
+                        }
+                        else
+                        {
+                            PlaybackManager.PlaybackManager.Instance.StartFollowingTimeline();
+                        }
+                    }
+
                     if (gui.Menu("Reset Playback"))
                     {
                         PlaybackManager.PlaybackManager.Instance.ResetToCleanEditor();
