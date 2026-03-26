@@ -20,7 +20,7 @@ namespace ReplayMod.PlaybackManager
 
         public Dictionary<string, BlockProperties> allBlocksDictionary = new Dictionary<string, BlockProperties>();
 
-        public void BeginPlayback(RecordingSession session, LEV_UndoRedo undoRedo)
+        public void BeginPlayback(RecordingSession session)
         {
             if (session == null)
             {
@@ -41,6 +41,63 @@ namespace ReplayMod.PlaybackManager
             IsPlaying = true;
 
             Plugin.logger.LogInfo($"[EditorRecorder] Started playback. Event count: {_session.events.Count}");
+
+            LoadlevelStateAtStart();
+        }
+
+        private void LoadlevelStateAtStart()
+        {
+            if (_session == null)
+                return;
+
+            PrimeGeneralLevelLoader();
+            bool isLoadSuccessful = false;
+            while (!isLoadSuccessful)
+            {
+                try
+                {
+                    isLoadSuccessful = Loadlevel();
+                }
+                catch (Exception ex)
+                {
+                    Plugin.logger.LogError($"[EditorRecorder] Exception during level load: {ex}");
+                    isLoadSuccessful = false;
+                }
+            }
+           
+            PopulateAllBlocksDictionary();
+        }
+        private void PrimeGeneralLevelLoader()
+        {
+            central.manager.loader.useV15loading = true;
+            central.manager.loader.PrimeGeneric("PrimeForLevelEditor()_v15");
+            central.manager.loader.loadType = GeneralLevelLoader.GameEditorSwitch.editor;
+            central.manager.loader.skybox = central.saveload.skybox;
+            central.manager.loader.levelJSON = _session.levelStateAtStart;
+            central.manager.loader.newCentral = central;
+
+            central.manager.loader.levelJSON.editcam.euler = new CV3(central.cam.cameraTransform.eulerAngles);
+            central.manager.loader.levelJSON.editcam.pos = new CV3(central.cam.transform.position);
+            central.manager.loader.levelJSON.editcam.rotXY = new CV2(new Vector2(central.cam.rotationX, central.cam.rotationY));
+
+        }
+
+        private bool Loadlevel()
+        {
+            return central.manager.loader.DoLoad_v15();
+        }
+
+        private void PopulateAllBlocksDictionary()
+        {
+            List<BlockProperties> existingBlocks = central.saveload.GetAllBlockPropertiesCurrentlyInLevel();
+
+
+            foreach (BlockProperties existingBlock in existingBlocks)
+            {
+                if (existingBlock == null)
+                    continue;
+                AddBlockToDictionary(existingBlock.UID, existingBlock);
+            }
         }
 
         public void StopPlayback()
@@ -101,12 +158,6 @@ namespace ReplayMod.PlaybackManager
             return true;
         }
 
-        public void ResetToCleanEditor()
-        {
-
-            CurrentEventIndex = -1;
-            allBlocksDictionary.Clear();
-        }
 
         private void ApplyEvent(RecordedEditorEvent evt)
         {
@@ -265,7 +316,7 @@ namespace ReplayMod.PlaybackManager
             }
             catch (Exception ex)
             {
-                Plugin.logger.LogError($"[Playback] RefreshConnectionsForAllBlocks encountered an issue: {ex}");
+                Plugin.logger.LogError($"[EditorRecorder] RefreshConnectionsForAllBlocks encountered an issue: {ex}");
             }
         }
 

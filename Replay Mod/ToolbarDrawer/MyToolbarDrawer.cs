@@ -34,11 +34,6 @@ namespace ReplayMod.ToolbarDrawer
                     {
                         PlaybackManager.PlaybackManager.Instance.StepForward();
                     }
-
-                    if (gui.Menu("Reset Playback"))
-                    {
-                        PlaybackManager.PlaybackManager.Instance.ResetToCleanEditor();
-                    }
                 }
             }
 
