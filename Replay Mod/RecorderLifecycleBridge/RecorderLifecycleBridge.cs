@@ -1,9 +1,6 @@
 ﻿using Replay_Mod;
-using ReplayMod.GUIDrawer;
-using System;
 using UnityEngine;
 using UnityEngine.SceneManagement;
-using ZeepSDK.LevelEditor;
 
 namespace ReplayMod.RecorderLifecycleBridge
 {
@@ -41,7 +38,7 @@ namespace ReplayMod.RecorderLifecycleBridge
 
                     central = GameObject.FindObjectOfType<LEV_LevelEditorCentral>();
 
-                    if (central == null )
+                    if (central == null)
                         return;
                     DisableSelection();
                     DisableOriginalUI();
@@ -49,7 +46,7 @@ namespace ReplayMod.RecorderLifecycleBridge
                     new GameObject("PauseMenuHandler").AddComponent<PauseMenuHandler.PauseMenuHandler>();
                     LoadAndBeginPlayback();
                 }
-            }            
+            }
         }
 
         private static void DisableSelection()
@@ -99,7 +96,7 @@ namespace ReplayMod.RecorderLifecycleBridge
             PlaybackManager.PlaybackManager.Instance.BeginPlayback(session, central.undoRedo);
         }
 
-        private static void  DisableOriginalUI()
+        private static void DisableOriginalUI()
         {
 
             LEV_LevelEditorCentral levelEditorCentral = GameObject.FindObjectOfType<LEV_LevelEditorCentral>();

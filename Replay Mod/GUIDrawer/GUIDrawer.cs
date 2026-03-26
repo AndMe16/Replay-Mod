@@ -1,10 +1,6 @@
-﻿using BugsnagUnity.Payload;
-using Imui.Controls;
+﻿using Imui.Controls;
 using Imui.Core;
 using Replay_Mod;
-using System;
-using System.IO;
-using System.Linq;
 using ZeepSDK.UI;
 
 namespace ReplayMod.GUIDrawer
@@ -21,7 +17,7 @@ namespace ReplayMod.GUIDrawer
 
         public void OnZeepGUI(ImGui gui)
         {
-            
+
             if (_SavesWindowOpen && gui.BeginWindow("Editor Recordings", ref _SavesWindowOpen, (500, 500)))
             {
                 ListOfRecordings(gui);
@@ -40,7 +36,7 @@ namespace ReplayMod.GUIDrawer
             for (int i = 0; i < values.Length; ++i)
             {
 
-                if (gui.ListItem(ref _selectedIndex,i, values[i]))
+                if (gui.ListItem(ref _selectedIndex, i, values[i]))
                 {
                     Plugin.logger.LogInfo($"Clicked on {values[i]}");
                     selectedRecording = values[i];
@@ -48,7 +44,7 @@ namespace ReplayMod.GUIDrawer
             }
 
             gui.EndList();
-            
+
         }
 
         private void RecordingInfo(ImGui gui)
@@ -67,11 +63,11 @@ namespace ReplayMod.GUIDrawer
                               $"Actions recorded: {session.eventCount}";
 
 
-                    gui.TextEditNonEditable(info, (gui.GetLayoutWidth(),gui.GetTextLineHeight()*4.5f), true);
+                    gui.TextEditNonEditable(info, (gui.GetLayoutWidth(), gui.GetTextLineHeight() * 4.5f), true);
                 }
                 else
                 {
-                    gui.TextEditNonEditable("Failed to load recording session.", (gui.GetLayoutWidth(),gui.GetTextLineHeight()*1.5f), true);
+                    gui.TextEditNonEditable("Failed to load recording session.", (gui.GetLayoutWidth(), gui.GetTextLineHeight() * 1.5f), true);
                 }
 
                 gui.AddSpacing();

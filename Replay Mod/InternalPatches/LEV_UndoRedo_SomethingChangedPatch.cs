@@ -1,5 +1,4 @@
 ﻿using HarmonyLib;
-using Replay_Mod;
 
 namespace ReplayMod.InternalPatches
 {

@@ -1,5 +1,4 @@
-﻿using HarmonyLib;
-using Replay_Mod;
+﻿using Replay_Mod;
 using System;
 using System.Collections.Generic;
 using UnityEngine;
@@ -79,7 +78,7 @@ namespace ReplayMod.RecordManager
 
         public void StartRecording()
         {
-            if(IsRecording)
+            if (IsRecording)
             {
                 Plugin.logger.LogWarning("[EditorRecorder] StartRecording ignored, already recording.");
                 return;
@@ -87,7 +86,7 @@ namespace ReplayMod.RecordManager
 
             LEV_LevelEditorCentral central = GameObject.FindObjectOfType<LEV_LevelEditorCentral>();
 
-            if (central == null )
+            if (central == null)
                 return;
 
             CurrentSession = new RecordingSession
@@ -126,7 +125,7 @@ namespace ReplayMod.RecordManager
                 Plugin.logger.LogError($"[EditorRecorder] Failed to save recording session: {ex}");
             }
 
-            
+
         }
 
         public void CaptureSomethingChanged(LEV_UndoRedo undoRedo, Change_Collection whatChanged, string source)

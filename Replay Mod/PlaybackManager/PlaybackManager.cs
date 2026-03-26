@@ -2,9 +2,7 @@
 using ReplayMod.RecordManager;
 using System;
 using System.Collections.Generic;
-using System.Linq;
 using UnityEngine;
-using static UnityEngine.UIElements.UIR.BestFitAllocator;
 
 namespace ReplayMod.PlaybackManager
 {
@@ -29,11 +27,11 @@ namespace ReplayMod.PlaybackManager
                 Plugin.logger.LogWarning("[EditorRecorder] BeginPlayback failed: session was null.");
                 return;
             }
-            
+
             central = GameObject.FindObjectOfType<LEV_LevelEditorCentral>();
 
-            if (central == null )
-            {     
+            if (central == null)
+            {
                 Plugin.logger.LogWarning("[EditorRecorder] BeginPlayback failed: could not find LEV_LevelEditorCentral in the scene.");
                 return;
             }
@@ -105,7 +103,7 @@ namespace ReplayMod.PlaybackManager
 
         public void ResetToCleanEditor()
         {
-            
+
             CurrentEventIndex = -1;
             allBlocksDictionary.Clear();
         }

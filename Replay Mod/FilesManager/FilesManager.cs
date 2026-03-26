@@ -3,7 +3,6 @@ using System;
 using System.IO;
 using System.Linq;
 using ZeepSDK.Storage;
-using static UnityEngine.UIElements.StylePropertyAnimationSystem;
 
 namespace ReplayMod.FilesManager
 {
@@ -49,7 +48,7 @@ namespace ReplayMod.FilesManager
 
         public static string[] GetAllRecordingSessions(IModStorage editorRecorderStorage)
         {
-            
+
             if (!Directory.Exists(folderPath))
             {
                 return [];
