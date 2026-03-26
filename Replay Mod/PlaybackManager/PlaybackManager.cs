@@ -2,6 +2,7 @@
 using ReplayMod.RecordManager;
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using UnityEngine;
 using static UnityEngine.UIElements.UIR.BestFitAllocator;
 
@@ -120,7 +121,7 @@ namespace ReplayMod.PlaybackManager
                     break;
 
                 case "connection":
-                    Plugin.logger.LogInfo("[EditorRecorder] Skipping connection events for now.");
+                    ApplyConnectionEvent(evt, applyBefore);
                     break;
 
                 case "floor":
@@ -154,7 +155,6 @@ namespace ReplayMod.PlaybackManager
                 return;
             }
 
-            HashSet<string> recreatedUids = new HashSet<string>();
 
             foreach (RecordedSingleChange change in evt.changes)
             {
@@ -179,13 +179,15 @@ namespace ReplayMod.PlaybackManager
 
                 BlockPropertyJSON blockJson = LEV_UndoRedo.GetJSONblock(targetJson);
                 BlockProperties newBlock = CreateBlockFromJson(blockJson, uid);
-                if (newBlock != null)
-                {
-                    recreatedUids.Add(uid); // IMPORTANT: THIS WILL BE USED FOR CONNECTIONS LATER. DON'T FORGET TO ADD THAT
-                }
             }
 
+            RefreshConnectionsForAllBlocks();
             Reselect(evt, applyBefore);
+        }
+
+        private void ApplyConnectionEvent(RecordedEditorEvent evt, bool applyBefore)
+        {
+            ApplyBlockEvent(evt, applyBefore);
         }
 
         private void ApplyFloorEvent(RecordedEditorEvent evt, bool applyBefore)
@@ -237,6 +239,36 @@ namespace ReplayMod.PlaybackManager
         private void ApplySelectionEvent(RecordedEditorEvent evt, bool applyBefore)
         {
             Reselect(evt, applyBefore);
+        }
+
+        private void RefreshConnectionsForAllBlocks()
+        {
+            try
+            {
+                foreach (KeyValuePair<string, BlockProperties> kvp in allBlocksDictionary)
+                {
+                    BlockProperties block = kvp.Value;
+                    if (block == null)
+                        continue;
+
+                    block.LoadOnlyPropertyScripts();
+
+                    List<BlockEdit_v18_Connector_Base> connectors =
+                        StaticConnectorTracker.GetAllBlockEditV18ConnectorsOnThisBlock(kvp.Key);
+
+                    if (connectors == null)
+                        continue;
+
+                    for (int i = 0; i < connectors.Count; i++)
+                    {
+                        connectors[i].ForceRedrawConnectionVisualizers();
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Plugin.logger.LogError($"[Playback] RefreshConnectionsForAllBlocks encountered an issue: {ex}");
+            }
         }
 
         private void Reselect(RecordedEditorEvent evt, bool applyBefore)
