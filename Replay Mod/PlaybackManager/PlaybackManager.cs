@@ -173,6 +173,10 @@ namespace ReplayMod.PlaybackManager
                 RecordManager.RecordManager.Instance.SuppressCapture = true;
                 ApplyEvent(evt);
                 CurrentEventIndex = nextIndex;
+                if (!IsFollowingTimeline)
+                {
+                    CurrentSessionTime = GetEventTime(CurrentEventIndex);
+                }
             }
             catch (Exception ex)
             {
@@ -183,6 +187,57 @@ namespace ReplayMod.PlaybackManager
             RecordManager.RecordManager.Instance.SuppressCapture = false;
 
             Plugin.logger.LogInfo($"[EditorRecorder] Applied event index={CurrentEventIndex} seq={evt.sequence} kind={evt.eventKind} type={evt.changeType}");
+            return true;
+        }
+
+        public bool StepBackward()
+        {
+            if (!IsPlaying)
+            {
+                Plugin.logger.LogWarning("[EditorRecorder] StepBackward ignored: playback is not active.");
+                return false;
+            }
+
+            if (Session == null)
+            {
+                Plugin.logger.LogWarning("[EditorRecorder] StepBackward failed: session is null.");
+                return false;
+            }
+
+            if (CurrentEventIndex < 0)
+            {
+                Plugin.logger.LogInfo("[EditorRecorder] Already at the beginning.");
+                return false;
+            }
+
+            RecordedEditorEvent evt = Session.events[CurrentEventIndex];
+            if (evt == null)
+            {
+                Plugin.logger.LogWarning($"[EditorRecorder] Event at index {CurrentEventIndex} was null.");
+                CurrentEventIndex--;
+                return true;
+            }
+
+            try
+            {
+                RecordManager.RecordManager.Instance.SuppressCapture = true;
+
+                ApplyEvent(evt, inverse: true);
+
+                CurrentEventIndex--;
+                if (!IsFollowingTimeline)
+                {
+                    CurrentSessionTime = GetEventTime(CurrentEventIndex);
+                }
+            }
+            catch (Exception ex)
+            {
+                Plugin.logger.LogError($"[EditorRecorder] Failed to revert event at index {CurrentEventIndex}: {ex}");
+                return false;
+            }
+
+            RecordManager.RecordManager.Instance.SuppressCapture = false;
+
             return true;
         }
 
@@ -258,9 +313,13 @@ namespace ReplayMod.PlaybackManager
             }
         }
 
-        private void ApplyEvent(RecordedEditorEvent evt)
+        private void ApplyEvent(RecordedEditorEvent evt, bool inverse = false)
         {
             bool applyBefore = ShouldApplyBefore(evt);
+
+            if (inverse)
+                applyBefore = !applyBefore;
+
             central.selection.DeselectAllBlocks(false, "[ReplayMod]Playback");
             switch (evt.changeType)
             {
@@ -533,6 +592,13 @@ namespace ReplayMod.PlaybackManager
 
             _timelinePlaybackStartEventTime = CurrentSessionTime;
             _timelinePlaybackStartRealtime = Time.realtimeSinceStartup;
+        }
+
+        private float GetEventTime(int index)
+        {
+            return index >= 0 && index < Session.events.Count
+                ? Session.events[index].timeSinceStart
+                : 0f;
         }
     }
 }

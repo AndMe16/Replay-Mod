@@ -70,6 +70,21 @@ namespace ReplayMod.GUIDrawer
                 gui.NumericEdit(ref speed, step: 0.25f, size: new ImSize(gui.GetLayoutWidth()*0.3f, gui.GetRowHeight()), flags: ImNumericEditFlag.PlusMinus, format: "F2" , min:0.25f, max: 10);
                 manager.SpeedMultiplier = speed;
 
+                gui.AddSpacing();
+
+                if (!PlaybackManager.PlaybackManager.Instance.IsFollowingTimeline)
+                {
+                    if (gui.Button("<", ImSizeMode.Auto))
+                    {
+                        PlaybackManager.PlaybackManager.Instance.StepBackward();
+                    }
+                    if (gui.Button(">", ImSizeMode.Auto))
+                    {
+                        PlaybackManager.PlaybackManager.Instance.StepForward();
+                    }
+                }
+
+
                 gui.EndHorizontal();
 
                 gui.EndWindow();
