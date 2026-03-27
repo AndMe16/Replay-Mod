@@ -63,6 +63,14 @@ namespace ReplayMod.RecordManager
         public TimeSpan duration;
         public v15LevelJSON levelStateAtStart;
         public List<RecordedEditorEvent> events = new();
+        public List<CameraState> cameraStates = new();
+    }
+
+    public class CameraState
+    {
+        public float timeSinceStart;
+        public Vector3 position;
+        public Quaternion rotation;
     }
 
     internal class RecordManager
@@ -74,6 +82,8 @@ namespace ReplayMod.RecordManager
 
         private int _nextSequence;
 
+        LEV_LevelEditorCentral central;
+
         public void StartRecording()
         {
             if (IsRecording)
@@ -82,7 +92,7 @@ namespace ReplayMod.RecordManager
                 return;
             }
 
-            LEV_LevelEditorCentral central = GameObject.FindObjectOfType<LEV_LevelEditorCentral>();
+            central = GameObject.FindObjectOfType<LEV_LevelEditorCentral>();
 
             if (central == null)
                 return;
@@ -92,6 +102,13 @@ namespace ReplayMod.RecordManager
                 recordingStartRealtime = Time.realtimeSinceStartup,
                 levelStateAtStart = central.saveload.ConvertCurrentLevelStateToJSON_v15()
             };
+
+            Camera cam = central.cam.cameraCamera;
+
+            if (cam != null && cam.GetComponent<CameraRecorder>() == null)
+            {
+                cam.gameObject.AddComponent<CameraRecorder>();
+            }
 
             _nextSequence = 0;
             IsRecording = true;
@@ -109,6 +126,19 @@ namespace ReplayMod.RecordManager
 
             IsRecording = false;
             Plugin.logger.LogInfo($"[EditorRecorder] Recording stopped. Captured {CurrentSession?.events.Count ?? 0} events.");
+
+            if (central != null)
+            {
+                Camera cam = central.cam.cameraCamera;
+
+                CameraRecorder recorder = cam != null ? cam.GetComponent<CameraRecorder>() : null;
+
+                if (recorder != null)
+                {
+                    GameObject.Destroy(recorder);
+                }
+                
+            }
 
             try
             {
@@ -313,6 +343,18 @@ namespace ReplayMod.RecordManager
         public void CaptureRedo(LEV_UndoRedo undoRedo)
         {
             CaptureHistoryTraversal(undoRedo, "redo");
+        }
+
+        public void CaptureCameraState(Vector3 position, Quaternion rotation)
+        {
+            if (!IsRecording || CurrentSession == null)
+                return;
+            CurrentSession.cameraStates.Add(new CameraState
+            {
+                timeSinceStart = Time.realtimeSinceStartup - CurrentSession.recordingStartRealtime,
+                position = position,
+                rotation = rotation
+            });
         }
     }
 }
