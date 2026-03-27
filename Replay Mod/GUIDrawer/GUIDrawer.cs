@@ -46,25 +46,25 @@ namespace ReplayMod.GUIDrawer
             {
                 var manager = PlaybackManager.PlaybackManager.Instance;
 
-                CustomSliderHeader(gui, "Time", PlaybackManager.PlaybackManager.Instance._currentSessionTime);
-                if(gui.Slider(ref PlaybackManager.PlaybackManager.Instance._currentSessionTime, 0, ((float)PlaybackManager.PlaybackManager.Instance.Session.duration.TotalSeconds)))
+                CustomSliderHeader(gui, "Time", manager._currentSessionTime);
+                if(gui.Slider(ref manager._currentSessionTime, 0, ((float)manager.Session.duration.TotalSeconds)))
                 {
-                    PlaybackManager.PlaybackManager.Instance.ScrubToTime(PlaybackManager.PlaybackManager.Instance._currentSessionTime);
+                    manager.ScrubToTime(manager._currentSessionTime);
                 }
 
                 gui.BeginHorizontal();
 
-                var playPauseIcon = PlaybackManager.PlaybackManager.Instance.IsFollowingTimeline ? "\u23F8" : "\u25B6";
+                var playPauseIcon = manager.IsFollowingTimeline ? "\u23F8" : "\u25B6";
 
                 if (gui.Button(playPauseIcon, size: new ImSize(gui.GetLayoutWidth() * 0.1f, gui.GetRowHeight())))
                 {
-                    if (PlaybackManager.PlaybackManager.Instance.IsFollowingTimeline)
+                    if (manager.IsFollowingTimeline)
                     {
-                        PlaybackManager.PlaybackManager.Instance.StopFollowingTimeline();
+                        manager.StopFollowingTimeline();
                     }
                     else
                     {
-                        PlaybackManager.PlaybackManager.Instance.StartFollowingTimeline();
+                        manager.StartFollowingTimeline();
                     }
                 }
 
@@ -76,15 +76,17 @@ namespace ReplayMod.GUIDrawer
 
                 gui.AddSpacing();
 
-                if (!PlaybackManager.PlaybackManager.Instance.IsFollowingTimeline)
+                if (!manager.IsFollowingTimeline)
                 {
                     if (gui.Button("<", ImSizeMode.Auto))
                     {
-                        PlaybackManager.PlaybackManager.Instance.StepBackward();
+                        manager.StepBackward();
+                        manager.UpdateGhostFromTimeline(manager._currentSessionTime);
                     }
                     if (gui.Button(">", ImSizeMode.Auto))
                     {
                         PlaybackManager.PlaybackManager.Instance.StepForward();
+                        manager.UpdateGhostFromTimeline(manager._currentSessionTime);
                     }
                 }
 

@@ -27,6 +27,8 @@ namespace ReplayMod.PlaybackManager
 
         private float _speedMultiplier = 1f;
 
+        private SetupModelCar cameraManModel;
+
         public float SpeedMultiplier
         {
             get => _speedMultiplier;
@@ -66,6 +68,16 @@ namespace ReplayMod.PlaybackManager
             Plugin.logger.LogInfo($"[EditorRecorder] Started playback. Event count: {Session.events.Count}");
 
             LoadlevelStateAtStart();
+
+            cameraManModel = CreateGhostCameraMan();
+
+            if (cameraManModel == null)
+            {
+                Plugin.logger.LogError("Failed to create ghost camera man!");
+                return;
+            }
+
+            cameraManModel.gameObject.SetActive(true);
 
             Plugin._guiDrawer.OpenPlaybackWindow();
         }
@@ -242,9 +254,9 @@ namespace ReplayMod.PlaybackManager
                 return;
             }
 
-            if (CurrentEventIndex + 1 >= Session.events.Count)
+            if (_currentSessionTime >= Session.duration.TotalSeconds)
             {
-                Plugin.logger.LogInfo("[EditorRecorder] StartFollowingTimeline ignored: no remaining events.");
+                Plugin.logger.LogInfo("[EditorRecorder] StartFollowingTimeline ignored: Playback reached the end.");
                 return;
             }
 
@@ -298,6 +310,8 @@ namespace ReplayMod.PlaybackManager
                     return;
                 }
             }
+
+            UpdateGhostFromTimeline(targetSessionTime);
 
             if (targetSessionTime >= Session.duration.TotalSeconds)
             {
@@ -622,6 +636,8 @@ namespace ReplayMod.PlaybackManager
                 }
             }
 
+            UpdateGhostFromTimeline(targetTime);
+
             _currentSessionTime = targetTime;
         }
 
@@ -664,6 +680,110 @@ namespace ReplayMod.PlaybackManager
             }
 
             return result;
+        }
+
+        public SetupModelCar CreateGhostCameraMan()
+        {
+            var spawner = GameObject.FindObjectOfType<NetworkedGhostSpawner>();
+
+            if (spawner == null)
+            {
+                Plugin.logger.LogError("NetworkedGhostSpawner not found!");
+                return null;
+            }
+
+            // Instantiate camera man
+            var cameraManObj = GameObject.Instantiate(
+                spawner.zeepkistGhostPrefab.cameraManModel.gameObject
+            );
+
+            cameraManObj.name = "GhostCameraMan";
+
+            var cameraMan = cameraManObj.GetComponent<SetupModelCar>();
+
+            var cam = cameraMan.transform.Find("Character/Right Arm/Camera");
+            if (cam != null)
+            {
+                cam.gameObject.SetActive(false);
+            }
+
+            PlayerManager playerManager = GameObject.FindObjectOfType<PlayerManager>();
+
+            if (playerManager == null)
+            {
+                Plugin.logger.LogError("PlayerManager not found!");
+                return null;
+            }
+
+            CosmeticsV16 ghostCosmetics = new CosmeticsV16();
+            if (playerManager.adventureCosmetics != null)
+            {
+                ghostCosmetics.IDsToCosmetics(playerManager.adventureCosmetics.GetIDs());
+            }
+            cameraMan.DoCarSetup(ghostCosmetics, false, false, false);
+
+            if (Session.cameraStates.Count > 0)
+            {
+                cameraMan.transform.position = Session.cameraStates[0].position;
+                cameraMan.transform.rotation = Session.cameraStates[0].rotation;
+            }
+            
+
+            return cameraMan;
+        }
+
+        private void GetSurroundingStates(float time, out CameraState a, out CameraState b)
+        {
+            a = null;
+            b = null;
+
+            for (int i = 0; i < Session.cameraStates.Count - 1; i++)
+            {
+                var current = Session.cameraStates[i];
+                var next = Session.cameraStates[i + 1];
+
+                if (current.timeSinceStart <= time && next.timeSinceStart >= time)
+                {
+                    a = current;
+                    b = next;
+                    return;
+                }
+            }
+
+            // Edge cases
+            if (Session.cameraStates.Count > 0)
+            {
+                a = Session.cameraStates[0];
+                b = Session.cameraStates[Session.cameraStates.Count - 1];
+            }
+        }
+
+        public void UpdateGhostFromTimeline(float time)
+        {
+            if (cameraManModel == null || Session.cameraStates.Count == 0)
+                return;
+
+            GetSurroundingStates(time, out var a, out var b);
+
+            if (a == null || b == null)
+                return;
+
+            float t;
+
+            if (Mathf.Abs(b.timeSinceStart - a.timeSinceStart) < 0.0001f)
+            {
+                t = 0f;
+            }
+            else
+            {
+                t = Mathf.InverseLerp(a.timeSinceStart, b.timeSinceStart, time);
+            }
+
+            Vector3 pos = Vector3.Lerp(a.position, b.position, t);
+            Quaternion rot = Quaternion.Slerp(a.rotation, b.rotation,t);
+
+            cameraManModel.transform.position = pos;
+            cameraManModel.transform.rotation = rot;
         }
     }
 }
