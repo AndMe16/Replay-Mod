@@ -88,7 +88,7 @@ namespace ReplayMod.RecordManager
         {
             if (IsRecording)
             {
-                Plugin.logger.LogWarning("[EditorRecorder] StartRecording ignored, already recording.");
+                Plugin.logger.LogWarning("[RecorderManager] StartRecording ignored, already recording.");
                 return;
             }
 
@@ -113,19 +113,19 @@ namespace ReplayMod.RecordManager
             _nextSequence = 0;
             IsRecording = true;
 
-            Plugin.logger.LogInfo("[EditorRecorder] Recording started.");
+            Plugin.logger.LogInfo("[RecorderManager] Recording started.");
         }
 
         public void StopRecording()
         {
             if (!IsRecording)
             {
-                Plugin.logger.LogWarning("[EditorRecorder] StopRecording ignored, not currently recording.");
+                Plugin.logger.LogWarning("[RecorderManager] StopRecording ignored, not currently recording.");
                 return;
             }
 
             IsRecording = false;
-            Plugin.logger.LogInfo($"[EditorRecorder] Recording stopped. Captured {CurrentSession?.events.Count ?? 0} events.");
+            Plugin.logger.LogInfo($"[RecorderManager] Recording stopped. Captured {CurrentSession?.events.Count ?? 0} events.");
 
             if (central != null)
             {
@@ -150,7 +150,7 @@ namespace ReplayMod.RecordManager
             }
             catch (Exception ex)
             {
-                Plugin.logger.LogError($"[EditorRecorder] Failed to save recording session: {ex}");
+                Plugin.logger.LogError($"[RecorderManager] Failed to save recording session: {ex}");
             }
 
 
@@ -163,19 +163,19 @@ namespace ReplayMod.RecordManager
 
             if (undoRedo == null)
             {
-                Plugin.logger.LogWarning("[EditorRecorder] CaptureSomethingChanged skipped: undoRedo was null.");
+                Plugin.logger.LogWarning("[RecorderManager] CaptureSomethingChanged skipped: undoRedo was null.");
                 return;
             }
 
             if (whatChanged == null)
             {
-                Plugin.logger.LogWarning("[EditorRecorder] CaptureSomethingChanged skipped: whatChanged was null.");
+                Plugin.logger.LogWarning("[RecorderManager] CaptureSomethingChanged skipped: whatChanged was null.");
                 return;
             }
 
             if (CurrentSession == null)
             {
-                Plugin.logger.LogWarning("[EditorRecorder] CaptureSomethingChanged skipped: no active session.");
+                Plugin.logger.LogWarning("[RecorderManager] CaptureSomethingChanged skipped: no active session.");
                 return;
             }
 
@@ -187,7 +187,7 @@ namespace ReplayMod.RecordManager
 
             CurrentSession.events.Add(evt);
 
-            Plugin.logger.LogInfo($"[EditorRecorder] Captured commit #{evt.sequence} type={evt.changeType} source={evt.source} changes={evt.changes.Count}");
+            Plugin.logger.LogInfo($"[RecorderManager] Captured commit #{evt.sequence} type={evt.changeType} source={evt.source} changes={evt.changes.Count}");
         }
 
         private RecordedEditorEvent CreateRecordedEventFromChangeCollection(
@@ -250,7 +250,7 @@ namespace ReplayMod.RecordManager
                 }
                 catch (Exception ex)
                 {
-                    Plugin.logger.LogWarning($"[EditorRecorder] Failed to resolve UID from Change_Single: {ex}");
+                    Plugin.logger.LogWarning($"[RecorderManager] Failed to resolve UID from Change_Single: {ex}");
                     uid = string.Empty;
                 }
             }
@@ -265,7 +265,7 @@ namespace ReplayMod.RecordManager
             }
             catch (Exception ex)
             {
-                Plugin.logger.LogWarning($"[EditorRecorder] Failed to inspect add/remove state: {ex}");
+                Plugin.logger.LogWarning($"[RecorderManager] Failed to inspect add/remove state: {ex}");
             }
 
             return new RecordedSingleChange
@@ -301,26 +301,26 @@ namespace ReplayMod.RecordManager
 
             if (undoRedo == null)
             {
-                Plugin.logger.LogWarning($"[EditorRecorder] CaptureHistoryTraversal skipped: undoRedo was null for {eventKind}.");
+                Plugin.logger.LogWarning($"[RecorderManager] CaptureHistoryTraversal skipped: undoRedo was null for {eventKind}.");
                 return;
             }
 
             if (CurrentSession == null)
             {
-                Plugin.logger.LogWarning($"[EditorRecorder] CaptureHistoryTraversal skipped: no active session for {eventKind}.");
+                Plugin.logger.LogWarning($"[RecorderManager] CaptureHistoryTraversal skipped: no active session for {eventKind}.");
                 return;
             }
 
             if (undoRedo.currentHistoryPosition < 0 || undoRedo.currentHistoryPosition >= undoRedo.historyList.Count)
             {
-                Plugin.logger.LogWarning($"[EditorRecorder] CaptureHistoryTraversal skipped: history position out of range for {eventKind} ({undoRedo.currentHistoryPosition}/{undoRedo.historyList.Count}).");
+                Plugin.logger.LogWarning($"[RecorderManager] CaptureHistoryTraversal skipped: history position out of range for {eventKind} ({undoRedo.currentHistoryPosition}/{undoRedo.historyList.Count}).");
                 return;
             }
 
             Change_Collection changeCollection = undoRedo.historyList[undoRedo.currentHistoryPosition];
             if (changeCollection == null)
             {
-                Plugin.logger.LogWarning($"[EditorRecorder] CaptureHistoryTraversal skipped: target Change_Collection was null for {eventKind}.");
+                Plugin.logger.LogWarning($"[RecorderManager] CaptureHistoryTraversal skipped: target Change_Collection was null for {eventKind}.");
                 return;
             }
 
@@ -332,7 +332,7 @@ namespace ReplayMod.RecordManager
 
             CurrentSession.events.Add(evt);
 
-            Plugin.logger.LogInfo($"[EditorRecorder] Captured {eventKind} #{evt.sequence} type={evt.changeType} source={evt.source} changes={evt.changes.Count}");
+            Plugin.logger.LogInfo($"[RecorderManager] Captured {eventKind} #{evt.sequence} type={evt.changeType} source={evt.source} changes={evt.changes.Count}");
         }
 
         public void CaptureUndo(LEV_UndoRedo undoRedo)

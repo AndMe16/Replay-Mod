@@ -28,7 +28,7 @@ namespace ReplayMod.FilesManager
             }
             else
             {
-                Plugin.logger.LogError($"Recording file {name} does not exist.");
+                Plugin.logger.LogError($"[FilesManager] Recording file {name} does not exist.");
             }
 
             return session;
@@ -42,7 +42,7 @@ namespace ReplayMod.FilesManager
             }
             else
             {
-                Plugin.logger.LogError($"Recording file {name} does not exist.");
+                Plugin.logger.LogError($"[FilesManager] Recording file {name} does not exist.");
             }
         }
 

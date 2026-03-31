@@ -26,7 +26,7 @@ namespace ReplayMod.RecorderLifecycleBridge
             SceneManager.sceneLoaded += OnEnteredLevelEditor;
             SceneManager.sceneUnloaded += OnExitedLevelEditor;
 
-            Plugin.logger.LogInfo("[EditorRecorder] Subscribed to level editor lifecycle events.");
+            Plugin.logger.LogInfo("[RecorderLifecycleBridge] Subscribed to level editor lifecycle events.");
         }
 
         private static void OnEnteredLevelEditor(Scene scene, LoadSceneMode mode)
@@ -82,7 +82,7 @@ namespace ReplayMod.RecorderLifecycleBridge
             SceneManager.sceneLoaded -= OnEnteredLevelEditor;
             SceneManager.sceneUnloaded -= OnExitedLevelEditor;
 
-            Plugin.logger.LogInfo("[EditorRecorder] Unsubscribed from level editor lifecycle events.");
+            Plugin.logger.LogInfo("[RecorderLifecycleBridge] Unsubscribed from level editor lifecycle events.");
         }
 
         public static void OpenPlaybackScene(string recordingName)

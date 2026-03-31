@@ -108,7 +108,7 @@ namespace ReplayMod.GUIDrawer
 
                 if (gui.ListItem(ref _selectedIndex, i, values[i]))
                 {
-                    Plugin.logger.LogInfo($"Clicked on {values[i]}");
+                    Plugin.logger.LogInfo($"[GUIDrawer] Clicked on {values[i]}");
                     selectedRecording = values[i];
                 }
             }
@@ -145,7 +145,7 @@ namespace ReplayMod.GUIDrawer
                 gui.BeginHorizontal();
                 if (gui.Button("Open", ImSizeMode.Auto))
                 {
-                    Plugin.logger.LogInfo($"Opening recording {selectedRecording}");
+                    Plugin.logger.LogInfo($"[GUIDrawer] Opening recording {selectedRecording}");
                     RecorderLifecycleBridge.RecorderLifecycleBridge.OpenPlaybackScene(selectedRecording);
                     _SavesWindowOpen = false;
                 }
@@ -154,7 +154,7 @@ namespace ReplayMod.GUIDrawer
 
                 if (gui.Button("Delete", ImSizeMode.Auto))
                 {
-                    Plugin.logger.LogInfo($"Deleting recording {selectedRecording}");
+                    Plugin.logger.LogInfo($"[GUIDrawer] Deleting recording {selectedRecording}");
                     FilesManager.FilesManager.DeleteRecordingSession(Plugin.Storage, selectedRecording);
                     RefreshUI();
                 }

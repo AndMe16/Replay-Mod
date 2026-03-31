@@ -46,7 +46,7 @@ namespace ReplayMod.PlaybackManager
         {
             if (session == null)
             {
-                Plugin.logger.LogWarning("[EditorRecorder] BeginPlayback failed: session was null.");
+                Plugin.logger.LogWarning("[PlaybackManager] BeginPlayback failed: session was null.");
                 return;
             }
 
@@ -54,7 +54,7 @@ namespace ReplayMod.PlaybackManager
 
             if (central == null)
             {
-                Plugin.logger.LogWarning("[EditorRecorder] BeginPlayback failed: could not find LEV_LevelEditorCentral in the scene.");
+                Plugin.logger.LogWarning("[PlaybackManager] BeginPlayback failed: could not find LEV_LevelEditorCentral in the scene.");
                 return;
             }
 
@@ -65,7 +65,7 @@ namespace ReplayMod.PlaybackManager
             _currentSessionTime = 0;
             _speedMultiplier = 1f;
 
-            Plugin.logger.LogInfo($"[EditorRecorder] Started playback. Event count: {Session.events.Count}");
+            Plugin.logger.LogInfo($"[PlaybackManager] Started playback. Event count: {Session.events.Count}");
 
             LoadlevelStateAtStart();
 
@@ -97,7 +97,7 @@ namespace ReplayMod.PlaybackManager
                 }
                 catch (Exception ex)
                 {
-                    Plugin.logger.LogError($"[EditorRecorder] Exception during level load: {ex}");
+                    Plugin.logger.LogError($"[PlaybackManager] Exception during level load: {ex}");
                     isLoadSuccessful = false;
                 }
             }
@@ -139,7 +139,7 @@ namespace ReplayMod.PlaybackManager
 
         public void StopPlayback()
         {
-            Plugin.logger.LogInfo("[EditorRecorder] Stopped playback.");
+            Plugin.logger.LogInfo("[PlaybackManager] Stopped playback.");
 
             IsPlaying = false;
             IsFollowingTimeline = false;
@@ -155,27 +155,27 @@ namespace ReplayMod.PlaybackManager
         {
             if (!IsPlaying)
             {
-                Plugin.logger.LogWarning("[EditorRecorder] StepForward ignored: playback is not active.");
+                Plugin.logger.LogWarning("[PlaybackManager] StepForward ignored: playback is not active.");
                 return false;
             }
 
             if (Session == null)
             {
-                Plugin.logger.LogWarning("[EditorRecorder] StepForward failed: session is null.");
+                Plugin.logger.LogWarning("[PlaybackManager] StepForward failed: session is null.");
                 return false;
             }
 
             int nextIndex = CurrentEventIndex + 1;
             if (nextIndex >= Session.events.Count)
             {
-                Plugin.logger.LogInfo("[EditorRecorder] Reached end of playback.");
+                Plugin.logger.LogInfo("[PlaybackManager] Reached end of playback.");
                 return false;
             }
 
             RecordedEditorEvent evt = Session.events[nextIndex];
             if (evt == null)
             {
-                Plugin.logger.LogWarning($"[EditorRecorder] Event at index {nextIndex} was null.");
+                Plugin.logger.LogWarning($"[PlaybackManager] Event at index {nextIndex} was null.");
                 CurrentEventIndex = nextIndex;
                 return true;
             }
@@ -191,11 +191,11 @@ namespace ReplayMod.PlaybackManager
             }
             catch (Exception ex)
             {
-                Plugin.logger.LogError($"[EditorRecorder] Failed to apply event at index {nextIndex}: {ex}");
+                Plugin.logger.LogError($"[PlaybackManager] Failed to apply event at index {nextIndex}: {ex}");
                 return false;
             }
 
-            Plugin.logger.LogInfo($"[EditorRecorder] Applied event index={CurrentEventIndex} seq={evt.sequence} kind={evt.eventKind} type={evt.changeType}");
+            Plugin.logger.LogInfo($"[PlaybackManager] Applied event index={CurrentEventIndex} seq={evt.sequence} kind={evt.eventKind} type={evt.changeType}");
             return true;
         }
 
@@ -203,26 +203,26 @@ namespace ReplayMod.PlaybackManager
         {
             if (!IsPlaying)
             {
-                Plugin.logger.LogWarning("[EditorRecorder] StepBackward ignored: playback is not active.");
+                Plugin.logger.LogWarning("[PlaybackManager] StepBackward ignored: playback is not active.");
                 return false;
             }
 
             if (Session == null)
             {
-                Plugin.logger.LogWarning("[EditorRecorder] StepBackward failed: session is null.");
+                Plugin.logger.LogWarning("[PlaybackManager] StepBackward failed: session is null.");
                 return false;
             }
 
             if (CurrentEventIndex < 0)
             {
-                Plugin.logger.LogInfo("[EditorRecorder] Already at the beginning.");
+                Plugin.logger.LogInfo("[PlaybackManager] Already at the beginning.");
                 return false;
             }
 
             RecordedEditorEvent evt = Session.events[CurrentEventIndex];
             if (evt == null)
             {
-                Plugin.logger.LogWarning($"[EditorRecorder] Event at index {CurrentEventIndex} was null.");
+                Plugin.logger.LogWarning($"[PlaybackManager] Event at index {CurrentEventIndex} was null.");
                 CurrentEventIndex--;
                 return true;
             }
@@ -239,7 +239,7 @@ namespace ReplayMod.PlaybackManager
             }
             catch (Exception ex)
             {
-                Plugin.logger.LogError($"[EditorRecorder] Failed to revert event at index {CurrentEventIndex}: {ex}");
+                Plugin.logger.LogError($"[PlaybackManager] Failed to revert event at index {CurrentEventIndex}: {ex}");
                 return false;
             }
 
@@ -250,13 +250,13 @@ namespace ReplayMod.PlaybackManager
         {
             if (!IsPlaying || Session == null)
             {
-                Plugin.logger.LogWarning("[EditorRecorder] StartFollowingTimeline ignored: playback is not active.");
+                Plugin.logger.LogWarning("[PlaybackManager] StartFollowingTimeline ignored: playback is not active.");
                 return;
             }
 
             if (_currentSessionTime >= Session.duration.TotalSeconds)
             {
-                Plugin.logger.LogInfo("[EditorRecorder] StartFollowingTimeline ignored: Playback reached the end.");
+                Plugin.logger.LogInfo("[PlaybackManager] StartFollowingTimeline ignored: Playback reached the end.");
                 return;
             }
 
@@ -264,7 +264,7 @@ namespace ReplayMod.PlaybackManager
             _timelinePlaybackStartEventTime = _currentSessionTime;
 
             IsFollowingTimeline = true;
-            Plugin.logger.LogInfo("[EditorRecorder] Following timeline in realtime.");
+            Plugin.logger.LogInfo("[PlaybackManager] Following timeline in realtime.");
         }
 
         public void StopFollowingTimeline()
@@ -276,7 +276,7 @@ namespace ReplayMod.PlaybackManager
             _currentSessionTime = _timelinePlaybackStartEventTime + elapsedRealtime * _speedMultiplier;
 
             IsFollowingTimeline = false;
-            Plugin.logger.LogInfo("[EditorRecorder] Realtime timeline playback paused.");
+            Plugin.logger.LogInfo("[PlaybackManager] Realtime timeline playback paused.");
         }
 
         public void UpdateRealtimePlayback()
@@ -296,7 +296,7 @@ namespace ReplayMod.PlaybackManager
                 if (nextEvent == null)
                 {
                     int skippedIndex = CurrentEventIndex + 1;
-                    Plugin.logger.LogWarning($"[EditorRecorder] Event at index {skippedIndex} was null during realtime follow. Skipping.");
+                    Plugin.logger.LogWarning($"[PlaybackManager] Event at index {skippedIndex} was null during realtime follow. Skipping.");
                     CurrentEventIndex = skippedIndex;
                     continue;
                 }
@@ -316,7 +316,7 @@ namespace ReplayMod.PlaybackManager
             if (targetSessionTime >= Session.duration.TotalSeconds)
             {
                 StopFollowingTimeline();
-                Plugin.logger.LogInfo("[EditorRecorder] Realtime timeline playback reached the end.");
+                Plugin.logger.LogInfo("[PlaybackManager] Realtime timeline playback reached the end.");
             }
         }
 
@@ -351,7 +351,7 @@ namespace ReplayMod.PlaybackManager
                     break;
 
                 default:
-                    Plugin.logger.LogWarning($"[EditorRecorder] Unknown change type: {evt.changeType}");
+                    Plugin.logger.LogWarning($"[PlaybackManager] Unknown change type: {evt.changeType}");
                     break;
             }
         }
@@ -365,7 +365,7 @@ namespace ReplayMod.PlaybackManager
         {
             if (evt.changes == null || evt.changes.Count == 0)
             {
-                Plugin.logger.LogInfo("[EditorRecorder] Block event had no changes.");
+                Plugin.logger.LogInfo("[PlaybackManager] Block event had no changes.");
                 return;
             }
 
@@ -380,7 +380,7 @@ namespace ReplayMod.PlaybackManager
 
                 if (string.IsNullOrEmpty(uid))
                 {
-                    Plugin.logger.LogWarning("[EditorRecorder] Skipping block change with empty UID.");
+                    Plugin.logger.LogWarning("[PlaybackManager] Skipping block change with empty UID.");
                     continue;
                 }
 
@@ -408,7 +408,7 @@ namespace ReplayMod.PlaybackManager
         {
             if (evt.changes == null || evt.changes.Count == 0)
             {
-                Plugin.logger.LogWarning("[EditorRecorder] Floor event had no change payload.");
+                Plugin.logger.LogWarning("[PlaybackManager] Floor event had no change payload.");
                 return;
             }
 
@@ -422,7 +422,7 @@ namespace ReplayMod.PlaybackManager
         {
             if (evt.changes == null || evt.changes.Count == 0)
             {
-                Plugin.logger.LogWarning("[EditorRecorder] Skybox event had no change payload.");
+                Plugin.logger.LogWarning("[PlaybackManager] Skybox event had no change payload.");
                 return;
             }
 
@@ -481,7 +481,7 @@ namespace ReplayMod.PlaybackManager
             }
             catch (Exception ex)
             {
-                Plugin.logger.LogError($"[EditorRecorder] RefreshConnectionsForAllBlocks encountered an issue: {ex}");
+                Plugin.logger.LogError($"[PlaybackManager] RefreshConnectionsForAllBlocks encountered an issue: {ex}");
             }
         }
 
@@ -552,7 +552,7 @@ namespace ReplayMod.PlaybackManager
         {
             if (newBlockValues == null)
             {
-                Plugin.logger.LogWarning("[EditorRecorder] CreateBlockFromJson failed: newBlockValues is null.");
+                Plugin.logger.LogWarning("[PlaybackManager] CreateBlockFromJson failed: newBlockValues is null.");
                 return null;
             }
 
@@ -576,7 +576,7 @@ namespace ReplayMod.PlaybackManager
             }
             catch (Exception ex)
             {
-                Plugin.logger.LogError($"[EditorRecorder] Failed to create block from JSON for UID {uid}: {ex}");
+                Plugin.logger.LogError($"[PlaybackManager] Failed to create block from JSON for UID {uid}: {ex}");
                 return null;
             }
         }

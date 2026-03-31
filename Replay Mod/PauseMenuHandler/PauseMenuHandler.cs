@@ -21,7 +21,7 @@ namespace ReplayMod.PauseMenuHandler
                 !central.unsavedContentPopup.IsOpen)
             {
 
-                Plugin.logger.LogInfo("Escape or MenuPause button pressed. Opening custom pause menu.");
+                Plugin.logger.LogInfo("[PauseMenuHandler] Escape or MenuPause button pressed. Opening custom pause menu.");
                 central.pause.EnablePauseMenu();
             }
         }
