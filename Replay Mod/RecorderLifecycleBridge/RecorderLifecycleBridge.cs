@@ -43,6 +43,7 @@ namespace ReplayMod.RecorderLifecycleBridge
                         return;
                     DisableSelection();
                     DisableOriginalUI();
+                    DisableTools();
                     isInPlaybackScene = true;
                     new GameObject("PauseMenuHandler").AddComponent<PauseMenuHandler.PauseMenuHandler>();
                     new GameObject("PlaybackController").AddComponent<PlaybackController>();
@@ -55,6 +56,11 @@ namespace ReplayMod.RecorderLifecycleBridge
         {
             central.click.onClickBuilding.RemoveAllListeners();
             central.click.onClickNothing.RemoveAllListeners();
+        }
+
+        private static void DisableTools()
+        {
+            central.tool.DisableAllTools();
         }
 
         private static void OnExitedLevelEditor(Scene scene)
