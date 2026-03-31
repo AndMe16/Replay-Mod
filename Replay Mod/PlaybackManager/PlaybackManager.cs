@@ -29,6 +29,9 @@ namespace ReplayMod.PlaybackManager
 
         private SetupModelCar cameraManModel;
 
+        public bool followCamera = false;
+        private LEV_MoveCamera editorCamera;
+
         public float SpeedMultiplier
         {
             get => _speedMultiplier;
@@ -78,6 +81,10 @@ namespace ReplayMod.PlaybackManager
             }
 
             cameraManModel.gameObject.SetActive(true);
+
+            editorCamera = central.cam;
+
+            followCamera = false;
 
             Plugin._guiDrawer.OpenPlaybackWindow();
         }
@@ -784,6 +791,61 @@ namespace ReplayMod.PlaybackManager
 
             cameraManModel.transform.position = pos;
             cameraManModel.transform.rotation = rot;
+
+            if (followCamera)
+            {
+                FollowCamera();
+            }
+        }
+
+        private void HideGhostCameraMan()
+        {
+            if (cameraManModel != null && cameraManModel.character.gameObject.activeInHierarchy)
+            {
+                var character = cameraManModel.transform.Find("Character");
+                character?.gameObject.SetActive(false);
+            }
+        }
+
+        private void ShowGhostCameraMan()
+        {
+            if (cameraManModel != null && !cameraManModel.character.gameObject.activeInHierarchy)
+            {
+                var character = cameraManModel.transform.Find("Character");
+                character?.gameObject.SetActive(true);
+            }
+        }
+
+        internal void ToggledFollowCamera()
+        {
+            if (followCamera)
+            {
+                HideGhostCameraMan();
+                FollowCamera();
+            }
+            else
+            {
+                ShowGhostCameraMan();
+            }
+        }
+
+
+
+        internal void FollowCamera()
+        {
+            if (editorCamera != null)
+            {
+                editorCamera.transform.position = cameraManModel.transform.position;
+                Vector3 euler = cameraManModel.transform.rotation.eulerAngles;
+
+                editorCamera.rotationX = euler.y;
+                editorCamera.rotationY = -euler.x;
+
+                Quaternion rhs = Quaternion.AngleAxis(editorCamera.rotationX, Vector3.up);
+                Quaternion rhs2 = Quaternion.AngleAxis(editorCamera.rotationY, -Vector3.right);
+
+                editorCamera.cameraTransform.localRotation = editorCamera.originalRotation * rhs * rhs2;
+            }
         }
     }
 }

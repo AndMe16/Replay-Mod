@@ -90,6 +90,12 @@ namespace ReplayMod.GUIDrawer
                     }
                 }
 
+                gui.AddSpacing();
+
+                if (gui.Checkbox(ref manager.followCamera, "Follow Camera", ImSizeMode.Auto))
+                {
+                    manager.ToggledFollowCamera();
+                }
 
                 gui.EndHorizontal();
 
