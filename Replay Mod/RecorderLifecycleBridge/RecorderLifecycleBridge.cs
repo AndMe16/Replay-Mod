@@ -47,6 +47,12 @@ namespace ReplayMod.RecorderLifecycleBridge
                     isInPlaybackScene = true;
                     new GameObject("PauseMenuHandler").AddComponent<PauseMenuHandler.PauseMenuHandler>();
                     new GameObject("PlaybackController").AddComponent<PlaybackController>();
+                    var recorder = new GameObject("PlaybackCameraRecorder").AddComponent<PlaybackCameraRecorder>();
+
+                    recorder.cam = central.cam;
+                    recorder.mainCamera = central.cam.cameraCamera;
+                    recorder.skyCamera = central.cam.skyCamera;
+
                     LoadAndBeginPlayback();
                 }
             }
