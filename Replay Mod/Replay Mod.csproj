@@ -50,11 +50,14 @@
 		</ItemGroup>
 		<Copy SourceFiles="@(ResourceFiles)" DestinationFolder="$(ModDirectory)/Resources/%(RecursiveDir)" />
 
+		<!-- Copy ffmpeg -->
+		<Copy SourceFiles="$(ProjectDir)ffmpeg\ffmpeg.exe" DestinationFiles="$(ModDirectory)/ffmpeg/ffmpeg.exe" />
+
 		<ItemGroup>
 			<None Include=".template.config\**" Pack="true" PackagePath="content/." />
 			<None Include="**\*" Exclude="bin\**;obj\**;.template.config\**" Pack="true" PackagePath="content/." />
 		</ItemGroup>
-
+		
 	</Target>
 
 </Project>
