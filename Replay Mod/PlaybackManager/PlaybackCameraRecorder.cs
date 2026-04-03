@@ -1,9 +1,11 @@
-﻿using Replay_Mod;
+﻿using BepInEx;
+using Replay_Mod;
 using System;
 using System.Collections;
 using System.Collections.Concurrent;
 using System.Diagnostics;
 using System.IO;
+using System.Reflection;
 using System.Threading;
 using Unity.Collections;
 using UnityEngine;
@@ -28,9 +30,14 @@ namespace ReplayMod.PlaybackManager
         public int width = 1920;
         public int height = 1080;
         public int targetFPS = 60;
-        public string outputFolder = "Recordings";
+        public string outputFolder = Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
+            "Zeepkist",
+            "Mods",
+            "Replay Mod",
+            "Recordings");
         public string outputFileName = "playback_capture.mp4";
-        public string ffmpegPath = "ffmpeg";
+        public string ffmpegPath = Path.Combine(Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location), "ffmpeg","ffmpeg.exe");
 
         [Header("Performance")]
         [SerializeField]
@@ -446,6 +453,7 @@ namespace ReplayMod.PlaybackManager
                 {
                     string args =
                         $"-y -f rawvideo -pix_fmt rgb24 -s {width}x{height} -r {fps} -i - " +
+                        "-vf vflip " +
                         "-an -c:v libx264 -preset fast -crf 18 -pix_fmt yuv420p " +
                         $"\"{outputPath}\"";
 
