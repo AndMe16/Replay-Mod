@@ -35,6 +35,8 @@ namespace Replay_Mod
 
             logger.LogInfo("Plugin com.andme.replaymod is loaded!");
 
+            ModConfig.Initialize(Config);
+
             RecorderLifecycleBridge.Initialize();
             _toolbarDrawer = new MyToolbarDrawer();
             UIApi.AddToolbarDrawer(_toolbarDrawer);

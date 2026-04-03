@@ -2,6 +2,7 @@
 using Imui.Core;
 using Imui.Rendering;
 using Replay_Mod;
+using ReplayMod.PlaybackManager;
 using System;
 using UnityEngine;
 using ZeepSDK.UI;
@@ -12,7 +13,7 @@ namespace ReplayMod.GUIDrawer
     {
         public bool _SavesWindowOpen = false;
 
-        private bool _PlaybackWindowOpen = false;
+        public bool _PlaybackWindowOpen = false;
 
         private string[] values = [];
 
@@ -45,6 +46,8 @@ namespace ReplayMod.GUIDrawer
             if (_PlaybackWindowOpen && gui.BeginWindow("Playback Controls", ref _PlaybackWindowOpen, rect, ImWindowFlag.NoCloseButton))
             {
                 var manager = PlaybackManager.PlaybackManager.Instance;
+
+                gui.Separator("Playback");
 
                 CustomSliderHeader(gui, "Time", manager._currentSessionTime);
                 if(gui.Slider(ref manager._currentSessionTime, 0, ((float)manager.Session.duration.TotalSeconds)))
@@ -85,7 +88,7 @@ namespace ReplayMod.GUIDrawer
                     }
                     if (gui.Button(">", ImSizeMode.Auto))
                     {
-                        PlaybackManager.PlaybackManager.Instance.StepForward();
+                        manager.StepForward();
                         manager.UpdateGhostFromTimeline(manager._currentSessionTime);
                     }
                 }
@@ -96,6 +99,47 @@ namespace ReplayMod.GUIDrawer
                 {
                     manager.ToggledFollowCamera();
                 }
+
+                gui.EndHorizontal();
+
+                gui.Separator("Recording");
+
+                gui.BeginHorizontal();
+
+                var playbackRecorder = RecorderLifecycleBridge.RecorderLifecycleBridge.playbackCameraRecorder;
+
+                if (playbackRecorder != null)
+                {
+
+                    if (playbackRecorder?.recording == true)
+                    {
+                        if (gui.Button("\u23F9", size: new ImSize(gui.GetLayoutWidth() * 0.1f, gui.GetRowHeight())))
+                        {
+                            playbackRecorder.StopRecording();
+                        }
+
+                    }
+                    else
+                    {
+                        if (gui.Button("\u23FA", new ImSize(gui.GetLayoutWidth() * 0.1f, gui.GetRowHeight())))
+                        {
+                            playbackRecorder.StartRecording();
+                        }
+                    }
+                }
+
+                string timeSinceStartRecordingString;
+
+                if (playbackRecorder.recordingTime != TimeSpan.Zero)
+                {
+                    timeSinceStartRecordingString = playbackRecorder.recordingTime.ToString(@"hh\:mm\:ss");
+                }
+                else
+                {
+                    timeSinceStartRecordingString = "--:--:--";
+                }
+
+                gui.TextEditNonEditable(timeSinceStartRecordingString, size: new ImSize(gui.GetLayoutWidth() * 0.2f, gui.GetRowHeight()));
 
                 gui.EndHorizontal();
 

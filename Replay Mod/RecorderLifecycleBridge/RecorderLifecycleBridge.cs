@@ -16,6 +16,8 @@ namespace ReplayMod.RecorderLifecycleBridge
 
         private static LEV_LevelEditorCentral central;
 
+        public static PlaybackCameraRecorder playbackCameraRecorder;
+
         public static void Initialize()
         {
             if (_initialized)
@@ -47,14 +49,15 @@ namespace ReplayMod.RecorderLifecycleBridge
                     isInPlaybackScene = true;
                     new GameObject("PauseMenuHandler").AddComponent<PauseMenuHandler.PauseMenuHandler>();
                     new GameObject("PlaybackController").AddComponent<PlaybackController>();
-                    var recorder = new GameObject("PlaybackCameraRecorder").AddComponent<PlaybackCameraRecorder>();
+                    playbackCameraRecorder = new GameObject("PlaybackCameraRecorder").AddComponent<PlaybackCameraRecorder>();
 
-                    recorder.cam = central.cam;
-                    recorder.mainCamera = central.cam.cameraCamera;
-                    recorder.skyCamera = central.cam.skyCamera;
+                    playbackCameraRecorder.cam = central.cam;
+                    playbackCameraRecorder.mainCamera = central.cam.cameraCamera;
+                    playbackCameraRecorder.skyCamera = central.cam.skyCamera;
 
                     LoadAndBeginPlayback();
                 }
+                new GameObject("ReplayModInputHandler").AddComponent<InputHandler.InputHandler>();
             }
         }
 
