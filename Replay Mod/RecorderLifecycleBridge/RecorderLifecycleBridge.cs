@@ -2,6 +2,7 @@
 using ReplayMod.PlaybackManager;
 using UnityEngine;
 using UnityEngine.SceneManagement;
+using ZeepSDK.LevelEditor;
 
 namespace ReplayMod.RecorderLifecycleBridge
 {
@@ -35,14 +36,15 @@ namespace ReplayMod.RecorderLifecycleBridge
         {
             if (scene.name == "LevelEditor2")
             {
+                central = GameObject.FindObjectOfType<LEV_LevelEditorCentral>();
+
+                if (central == null)
+                    return;
+
                 if (isPlayback)
                 {
                     isPlayback = false;
 
-                    central = GameObject.FindObjectOfType<LEV_LevelEditorCentral>();
-
-                    if (central == null)
-                        return;
                     DisableSelection();
                     DisableOriginalUI();
                     DisableTools();
@@ -102,9 +104,60 @@ namespace ReplayMod.RecorderLifecycleBridge
 
         public static void OpenPlaybackScene(string recordingName)
         {
-            isPlayback = true;
-            SceneManager.LoadScene("LevelEditor2");
-            currentRecordingName = recordingName;
+            if (LevelEditorApi.IsInLevelEditor)
+            {
+                if (central == null)
+                {
+                    Plugin.logger.LogWarning("[RecorderLifecycleBridge] Central manager is null when trying to open playback scene. This should not happen.");
+                    return;
+                }
+
+                central.saveload.SaveBackup(true);
+
+                if (central.manager.unsavedContent)
+                {
+                    central.unsavedContentPopup.ShouldQuit.RemoveAllListeners();
+                    central.unsavedContentPopup.ShouldQuit.AddListener(delegate (bool quit)
+                    {
+                        if (quit)
+                        {
+                            central.saveload.SaveBackup(true);
+                            central.manager.validated = false;
+                            central.manager.unsavedContent = false;
+                            central.manager.validationTime = 0f;
+                            central.manager.testLevelName = "";
+                            central.manager.ResetAll();
+                            central.manager.exitFromLevelEditor = true;
+                            isPlayback = true;
+                            SceneManager.LoadScene("LevelEditor2");
+                            currentRecordingName = recordingName;
+                        }
+                    });
+                    central.unsavedContentPopup.Open(true);
+                    Plugin._guiDrawer._SavesWindowOpen = false;
+                    return;
+                }
+                central.saveload.SaveBackup(true);
+                central.manager.validated = false;
+                central.manager.unsavedContent = false;
+                central.manager.validationTime = 0f;
+                central.manager.testLevelName = "";
+                central.manager.ResetAll();
+                central.manager.exitFromLevelEditor = true;
+                isPlayback = true;
+                SceneManager.LoadScene("LevelEditor2");
+                currentRecordingName = recordingName;
+                Plugin._guiDrawer._SavesWindowOpen = false;
+            }
+
+            else
+            {
+                isPlayback = true;
+                SceneManager.LoadScene("LevelEditor2");
+                currentRecordingName = recordingName;
+                Plugin._guiDrawer._SavesWindowOpen = false;
+            }
+
         }
 
         private static void LoadAndBeginPlayback()
@@ -116,14 +169,14 @@ namespace ReplayMod.RecorderLifecycleBridge
         private static void DisableOriginalUI()
         {
 
-            LEV_LevelEditorCentral levelEditorCentral = GameObject.FindObjectOfType<LEV_LevelEditorCentral>();
+            central = GameObject.FindObjectOfType<LEV_LevelEditorCentral>();
 
-            if (levelEditorCentral != null)
+            if (central != null)
             {
-                levelEditorCentral.cam.cameraCamera.cullingMask = levelEditorCentral.saveload.cameraTakeScreenshot;
-                levelEditorCentral.cam.cameraCamera.rect = new Rect(0f, 0f, 1f, 1f);
-                levelEditorCentral.cam.skyCamera.rect = new Rect(0f, 0f, 1f, 1f);
-                levelEditorCentral.cam.gizmoCamera.rect = new Rect(0f, 0f, 1f, 1f);
+                central.cam.cameraCamera.cullingMask = central.saveload.cameraTakeScreenshot;
+                central.cam.cameraCamera.rect = new Rect(0f, 0f, 1f, 1f);
+                central.cam.skyCamera.rect = new Rect(0f, 0f, 1f, 1f);
+                central.cam.gizmoCamera.rect = new Rect(0f, 0f, 1f, 1f);
 
                 string[] paths =
                 [

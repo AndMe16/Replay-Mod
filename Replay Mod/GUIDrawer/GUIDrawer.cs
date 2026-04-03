@@ -197,7 +197,6 @@ namespace ReplayMod.GUIDrawer
                 {
                     Plugin.logger.LogInfo($"[GUIDrawer] Opening recording {selectedRecording}");
                     RecorderLifecycleBridge.RecorderLifecycleBridge.OpenPlaybackScene(selectedRecording);
-                    _SavesWindowOpen = false;
                 }
 
                 gui.AddSpacing();
