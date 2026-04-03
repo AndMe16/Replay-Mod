@@ -30,12 +30,7 @@ namespace ReplayMod.PlaybackManager
         public int width = 1920;
         public int height = 1080;
         public int targetFPS = 60;
-        public string outputFolder = Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
-            "Zeepkist",
-            "Mods",
-            "Replay Mod",
-            "Recordings");
+        public string outputFolder = ModConfig.RecordingsSavePath.Value;
         public string outputFileName = "playback_capture.mp4";
         public string ffmpegPath = Path.Combine(Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location), "ffmpeg", "ffmpeg.exe");
 
@@ -119,6 +114,8 @@ namespace ReplayMod.PlaybackManager
 
             resolvedOutputFolder = ResolveOutputFolder();
             Directory.CreateDirectory(resolvedOutputFolder);
+
+            outputFileName = $"{DateTime.Now:yyyyMMdd_HHmmss}.mp4";
             resolvedVideoPath = Path.Combine(resolvedOutputFolder, outputFileName);
 
             renderTexture = new RenderTexture(width, height, 24, RenderTextureFormat.ARGB32)
@@ -389,10 +386,10 @@ namespace ReplayMod.PlaybackManager
         {
             if (Path.IsPathRooted(outputFolder))
             {
-                return outputFolder;
+                return Path.Combine(outputFolder, PlaybackManager.Instance.Session.sessionName);
             }
 
-            return Path.Combine(Application.persistentDataPath, outputFolder);
+            return Path.Combine(Application.persistentDataPath, PlaybackManager.Instance.Session.sessionName);
         }
 
         private void CleanupRuntimeState()

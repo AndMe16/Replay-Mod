@@ -1,5 +1,12 @@
 using BepInEx.Configuration;
+using Replay_Mod;
+using ReplayMod.PlaybackManager;
+using ReplayMod.RecorderLifecycleBridge;
+using System;
+using System.IO;
 using UnityEngine;
+using ZeepSDK.LevelEditor;
+using ZeepSDK.Messaging;
 
 public class ModConfig : MonoBehaviour
 {
@@ -37,9 +44,32 @@ public class ModConfig : MonoBehaviour
         ToggleRecording = config.Bind("3. Recording", "Start/Stop camera recording", KeyCode.R,
             "Key to Start/Stop camera recording during playback");
 
-        RecordingsSavePath = config.Bind("3. Recording", "Recordings Save Folder", "ReplayModRecordings",
-            "Name of the folder where the recording sessions will be saved ");
+        RecordingsSavePath = config.Bind("3. Recording", "Recordings Save Folder", Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
+            "Zeepkist",
+            "Mods",
+            "Replay Mod",
+            "Recordings"
+            ),
+        "Path of the folder where the recording sessions will be saved ");
 
+        RecordingsSavePath.SettingChanged += OnSettingsChanged;
 
+    }
+
+    private static void OnSettingsChanged(object sender, System.EventArgs e)
+    {
+        var configEntry = sender as ConfigEntryBase;
+
+        Plugin.logger.LogInfo($"Setting changed: {configEntry.Definition.Key}");
+
+        if (configEntry == RecordingsSavePath)
+        {
+            if (LevelEditorApi.IsInLevelEditor && PlaybackManager.Instance.IsPlaying)
+            {
+                RecorderLifecycleBridge.playbackCameraRecorder.outputFolder = RecordingsSavePath.Value;
+            }
+
+        }
     }
 }
