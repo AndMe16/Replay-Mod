@@ -37,7 +37,7 @@ namespace ReplayMod.PlaybackManager
             "Replay Mod",
             "Recordings");
         public string outputFileName = "playback_capture.mp4";
-        public string ffmpegPath = Path.Combine(Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location), "ffmpeg","ffmpeg.exe");
+        public string ffmpegPath = Path.Combine(Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location), "ffmpeg", "ffmpeg.exe");
 
         [Header("Performance")]
         [SerializeField]
@@ -53,29 +53,15 @@ namespace ReplayMod.PlaybackManager
 
         [SerializeField]
         private bool dropFramesWhenBusy = true;
-
-
-        [Header("Performance")]
-        [SerializeField]
-        private VideoExportMode exportMode = VideoExportMode.FfmpegPipeMp4;
-
-        [SerializeField]
-        [Range(1, 16)]
-        private int maxInFlightReadbacks = 4;
-
-        [SerializeField]
-        [Range(4, 256)]
-        private int maxFrameQueue = 64;
-
-        [SerializeField]
-        private bool dropFramesWhenBusy = true;
-
 
         public bool recording;
         private int frame;
         private int droppedFrames;
         private int enqueuedFrames;
         private int writtenFrames;
+
+        public TimeSpan recordingTime = TimeSpan.Zero;
+        private float recordingStartRealtime;
 
         private RenderTexture renderTexture;
         private Coroutine captureCoroutine;
@@ -104,32 +90,12 @@ namespace ReplayMod.PlaybackManager
 
         private void Update()
         {
-            if (Input.GetKeyDown(KeyCode.F9))
+            if (recording)
             {
-                if (!recording)
-                {
-                    StartRecording();
-                }
-                else
-                {
-                    StopRecording();
-                }
+                recordingTime = TimeSpan.FromSeconds(Time.realtimeSinceStartup - recordingStartRealtime);
             }
         }
 
-            if (mainCamera == null)
-            {
-                Plugin.logger.LogError("[PlaybackCameraRecorder] mainCamera is null, aborting recording start.");
-                return;
-            }
-
-
-            droppedFrames = 0;
-            enqueuedFrames = 0;
-            writtenFrames = 0;
-            pendingReadbacks = 0;
-            writerError = null;
-            frameByteCount = width * height * 3;
         public void StartRecording()
         {
             if (recording)
@@ -173,6 +139,9 @@ namespace ReplayMod.PlaybackManager
 
             recording = true;
             Time.captureFramerate = targetFPS;
+
+            recordingTime = TimeSpan.Zero;
+            recordingStartRealtime = Time.realtimeSinceStartup;
 
             captureCoroutine = StartCoroutine(CaptureLoop());
 
