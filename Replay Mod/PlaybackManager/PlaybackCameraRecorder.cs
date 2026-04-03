@@ -55,6 +55,22 @@ namespace ReplayMod.PlaybackManager
         private bool dropFramesWhenBusy = true;
 
 
+        [Header("Performance")]
+        [SerializeField]
+        private VideoExportMode exportMode = VideoExportMode.FfmpegPipeMp4;
+
+        [SerializeField]
+        [Range(1, 16)]
+        private int maxInFlightReadbacks = 4;
+
+        [SerializeField]
+        [Range(4, 256)]
+        private int maxFrameQueue = 64;
+
+        [SerializeField]
+        private bool dropFramesWhenBusy = true;
+
+
         public bool recording;
         private int frame;
         private int droppedFrames;
@@ -99,10 +115,7 @@ namespace ReplayMod.PlaybackManager
                     StopRecording();
                 }
             }
-            if (recording)
-            {
-                return;
-            }
+        }
 
             if (mainCamera == null)
             {
@@ -118,10 +131,30 @@ namespace ReplayMod.PlaybackManager
             writerError = null;
             frameByteCount = width * height * 3;
         public void StartRecording()
+        {
+            if (recording)
+            {
+                return;
+            }
+
+            if (mainCamera == null)
+            {
+                Plugin.logger.LogError("[PlaybackCameraRecorder] mainCamera is null, aborting recording start.");
+                return;
+            }
+
+            frame = 0;
+            droppedFrames = 0;
+            enqueuedFrames = 0;
+            writtenFrames = 0;
+            pendingReadbacks = 0;
+            writerError = null;
+            frameByteCount = width * height * 3;
+
             resolvedOutputFolder = ResolveOutputFolder();
             Directory.CreateDirectory(resolvedOutputFolder);
             resolvedVideoPath = Path.Combine(resolvedOutputFolder, outputFileName);
-            recording = true;
+
             renderTexture = new RenderTexture(width, height, 24, RenderTextureFormat.ARGB32)
             {
                 antiAliasing = 1,
@@ -139,42 +172,40 @@ namespace ReplayMod.PlaybackManager
             }
 
             recording = true;
-            frame = 0;
-
-            Plugin.logger.LogInfo("[PlaybackCameraRecorder] Recording started");
+            Time.captureFramerate = targetFPS;
 
             captureCoroutine = StartCoroutine(CaptureLoop());
-            recordingTime = TimeSpan.Zero;
+
             Plugin.logger.LogInfo($"[PlaybackCameraRecorder] Recording started ({width}x{height}@{targetFPS}) => {resolvedVideoPath}");
+        }
 
-            renderTexture = new RenderTexture(width, height, 32);
-
-            StartCoroutine(CaptureLoop());
+        public void StopRecording()
+        {
             if (!recording)
             {
                 return;
             }
 
-        }
             recording = false;
+            Time.captureFramerate = 0;
 
             if (captureCoroutine != null)
-
+            {
                 StopCoroutine(captureCoroutine);
                 captureCoroutine = null;
-
+            }
 
             if (finalizeCoroutine == null)
             {
                 finalizeCoroutine = StartCoroutine(FinalizeRecording());
             }
         }
-            {
-                renderTexture.Release();
-            }
+
         private IEnumerator CaptureLoop()
         {
-            string fullPath = outputFolder;
+            while (recording)
+            {
+                yield return new WaitForEndOfFrame();
 
                 RenderToTarget();
 
@@ -212,7 +243,7 @@ namespace ReplayMod.PlaybackManager
                 skyCamera.Render();
                 skyCamera.targetTexture = null;
             }
-                    skyCamera.targetTexture = renderTexture;
+
             mainCamera.targetTexture = renderTexture;
             mainCamera.Render();
             mainCamera.targetTexture = null;
@@ -227,17 +258,17 @@ namespace ReplayMod.PlaybackManager
                     droppedFrames++;
                     return;
                 }
-                Texture2D tex = new Texture2D(width, height, TextureFormat.RGB24, false);
+
                 if (!writerRunning)
                 {
                     droppedFrames++;
                     return;
                 }
-                tex.Apply();
+
                 NativeArray<byte> source = request.GetData<byte>();
                 byte[] buffer = RentBuffer();
                 source.CopyTo(buffer);
-                byte[] bytes = tex.EncodeToJPG(95);
+
                 frameQueue.Enqueue(new FramePacket
                 {
                     FrameIndex = frameIndex,
@@ -524,10 +555,6 @@ namespace ReplayMod.PlaybackManager
 
                 stdin = null;
                 process = null;
-
-                Destroy(tex);
-
-}
             }
         }
     }
