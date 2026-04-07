@@ -2,6 +2,7 @@
 using ReplayMod.RecordManager;
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using UnityEngine;
 
 namespace ReplayMod.PlaybackManager
@@ -61,7 +62,7 @@ namespace ReplayMod.PlaybackManager
                 return;
             }
 
-            Session = session;
+            Session = PrepareSessionForPlayback(session);
             CurrentEventIndex = -1;
             IsPlaying = true;
             IsFollowingTimeline = false;
@@ -87,6 +88,125 @@ namespace ReplayMod.PlaybackManager
             followCamera = false;
 
             Plugin._guiDrawer.OpenPlaybackWindow();
+        }
+
+        private RecordingSession PrepareSessionForPlayback(RecordingSession session)
+        {
+            session.events ??= new List<RecordedEditorEvent>();
+            session.cameraStates ??= new List<CameraState>();
+            session.excludedSegments ??= new List<RecordingExcludedSegment>();
+
+            bool shouldNormalizeV2Session =
+                session.version >= 2 &&
+                !session.timestampsNormalizedForPlayback &&
+                session.excludedSegments.Count > 0 &&
+                SessionTimestampsLookRaw(session);
+
+            if (shouldNormalizeV2Session)
+            {
+                Plugin.logger.LogInfo("[PlaybackManager] Normalizing raw v2 timestamps using excluded segments.");
+                NormalizeSessionTimestampsUsingExcludedSegments(session);
+                session.timestampsNormalizedForPlayback = true;
+            }
+
+            float computedDuration = ComputeDurationFromCapturedData(session);
+            float savedDuration = (float)session.duration.TotalSeconds;
+            if (computedDuration > savedDuration)
+            {
+                session.duration = TimeSpan.FromSeconds(computedDuration);
+            }
+
+            return session;
+        }
+
+        private float ComputeDurationFromCapturedData(RecordingSession session)
+        {
+            float maxEventTime = session.events.Count > 0
+                ? session.events.Max(evt => evt != null ? evt.timeSinceStart : 0f)
+                : 0f;
+
+            float maxCameraTime = session.cameraStates.Count > 0
+                ? session.cameraStates.Max(state => state != null ? state.timeSinceStart : 0f)
+                : 0f;
+
+            float savedDuration = (float)session.duration.TotalSeconds;
+            return Mathf.Max(0f, Mathf.Max(savedDuration, Mathf.Max(maxEventTime, maxCameraTime)));
+        }
+
+        private bool SessionTimestampsLookRaw(RecordingSession session)
+        {
+            const float epsilon = 0.0001f;
+            foreach (RecordingExcludedSegment segment in session.excludedSegments)
+            {
+                if (segment == null || !segment.excludeFromPlayback)
+                    continue;
+
+                float start = Mathf.Min(segment.startTimeRawSinceStart, segment.endTimeRawSinceStart);
+                float end = Mathf.Max(segment.startTimeRawSinceStart, segment.endTimeRawSinceStart);
+                if (end - start <= epsilon)
+                    continue;
+
+                bool hasTimestampInsideExcludedSegment =
+                    session.events.Any(evt => evt != null && evt.timeSinceStart > start + epsilon && evt.timeSinceStart < end - epsilon) ||
+                    session.cameraStates.Any(state => state != null && state.timeSinceStart > start + epsilon && state.timeSinceStart < end - epsilon) ||
+                    ((float)session.duration.TotalSeconds > start + epsilon && (float)session.duration.TotalSeconds < end - epsilon);
+
+                if (hasTimestampInsideExcludedSegment)
+                {
+                    return false;
+                }
+            }
+
+            return true;
+        }
+
+        private void NormalizeSessionTimestampsUsingExcludedSegments(RecordingSession session)
+        {
+            List<RecordingExcludedSegment> activeSegments = session.excludedSegments
+                .Where(segment => segment != null && segment.excludeFromPlayback)
+                .OrderBy(segment => Mathf.Min(segment.startTimeRawSinceStart, segment.endTimeRawSinceStart))
+                .ToList();
+
+            if (activeSegments.Count == 0)
+                return;
+
+            foreach (RecordedEditorEvent evt in session.events)
+            {
+                if (evt == null)
+                    continue;
+                evt.timeSinceStart = NormalizeTimestamp(evt.timeSinceStart, activeSegments);
+            }
+
+            foreach (CameraState state in session.cameraStates)
+            {
+                if (state == null)
+                    continue;
+                state.timeSinceStart = NormalizeTimestamp(state.timeSinceStart, activeSegments);
+            }
+
+            float normalizedDuration = NormalizeTimestamp((float)session.duration.TotalSeconds, activeSegments);
+            session.duration = TimeSpan.FromSeconds(Mathf.Max(0f, normalizedDuration));
+        }
+
+        private float NormalizeTimestamp(float timestamp, List<RecordingExcludedSegment> excludedSegments)
+        {
+            float normalizedTime = timestamp;
+            foreach (RecordingExcludedSegment segment in excludedSegments)
+            {
+                float start = Mathf.Min(segment.startTimeRawSinceStart, segment.endTimeRawSinceStart);
+                float end = Mathf.Max(segment.startTimeRawSinceStart, segment.endTimeRawSinceStart);
+
+                if (timestamp <= start)
+                    continue;
+
+                float overlap = Mathf.Min(timestamp, end) - start;
+                if (overlap > 0f)
+                {
+                    normalizedTime -= overlap;
+                }
+            }
+
+            return Mathf.Max(0f, normalizedTime);
         }
 
         private void LoadlevelStateAtStart()

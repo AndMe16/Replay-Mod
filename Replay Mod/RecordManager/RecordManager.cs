@@ -54,9 +54,20 @@ namespace ReplayMod.RecordManager
     }
 
     [Serializable]
+    public class RecordingExcludedSegment
+    {
+        public string reason;
+        public bool excludeFromPlayback = true;
+        public float startTimeRawSinceStart;
+        public float endTimeRawSinceStart;
+        public float duration => Mathf.Max(0f, endTimeRawSinceStart - startTimeRawSinceStart);
+    }
+
+    [Serializable]
     public class RecordingSession
     {
         public int version = 1;
+        public bool timestampsNormalizedForPlayback = false;
         public string sessionName;
         public float recordingStartRealtime;
         public DateTime savingTime;
@@ -65,6 +76,7 @@ namespace ReplayMod.RecordManager
         public v15LevelJSON levelStateAtStart;
         public List<RecordedEditorEvent> events = new();
         public List<CameraState> cameraStates = new();
+        public List<RecordingExcludedSegment> excludedSegments = new();
     }
 
     public class CameraState
@@ -83,6 +95,8 @@ namespace ReplayMod.RecordManager
         public RecordingSession CurrentSession { get; private set; }
 
         private int _nextSequence;
+        private float _pauseStartedRealtime = -1f;
+        private float _totalPausedDurationSeconds;
 
         LEV_LevelEditorCentral central;
 
@@ -113,7 +127,10 @@ namespace ReplayMod.RecordManager
             }
 
             _nextSequence = 0;
+            _pauseStartedRealtime = -1f;
+            _totalPausedDurationSeconds = 0f;
             IsRecording = true;
+            IsPaused = false;
 
             Plugin.logger.LogInfo("[RecorderManager] Recording started.");
         }
@@ -139,6 +156,7 @@ namespace ReplayMod.RecordManager
             }
 
             IsPaused = false;
+            EndPauseSegmentIfNeeded(reason: "test_mode");
             Plugin.logger.LogInfo("[RecorderManager] Recording resumed.");
         }
 
@@ -151,6 +169,7 @@ namespace ReplayMod.RecordManager
             }
 
             IsRecording = false;
+            EndPauseSegmentIfNeeded(reason: "test_mode");
             Plugin.logger.LogInfo($"[RecorderManager] Recording stopped. Captured {CurrentSession?.events.Count ?? 0} events.");
 
             if (central != null)
@@ -168,10 +187,11 @@ namespace ReplayMod.RecordManager
 
             try
             {
-                CurrentSession.version = 1; // In case we want to bump version later and need to handle compatibility in loading.
+                CurrentSession.version = 2; // Version 2 adds excludedSegments and pause-adjusted timestamps.
+                CurrentSession.timestampsNormalizedForPlayback = true;
                 CurrentSession.sessionName = $"recording_{DateTime.Now:yyyyMMdd_HHmmss}";
                 CurrentSession.savingTime = DateTime.Now;
-                CurrentSession.duration = TimeSpan.FromSeconds(Time.realtimeSinceStartup - CurrentSession.recordingStartRealtime);
+                CurrentSession.duration = TimeSpan.FromSeconds(GetEffectiveRecordingTimeSeconds());
                 FilesManager.FilesManager.SaveRecordingSession(Plugin.Storage, CurrentSession, $"recording_{DateTime.Now:yyyyMMdd_HHmmss}");
 
             }
@@ -186,6 +206,8 @@ namespace ReplayMod.RecordManager
         public void CaptureSomethingChanged(LEV_UndoRedo undoRedo, Change_Collection whatChanged, string source)
         {
             if (!IsRecording)
+                return;
+            if (IsPaused)
                 return;
 
             if (undoRedo == null)
@@ -226,7 +248,7 @@ namespace ReplayMod.RecordManager
             var evt = new RecordedEditorEvent
             {
                 sequence = _nextSequence++,
-                timeSinceStart = Time.realtimeSinceStartup - CurrentSession.recordingStartRealtime,
+                timeSinceStart = GetEffectiveRecordingTimeSeconds(),
                 eventKind = eventKind,
 
                 // In SomethingChanged postfix this represent the state after commit.
@@ -380,11 +402,11 @@ namespace ReplayMod.RecordManager
 
         public void CaptureCameraState(Vector3 position, Quaternion rotation)
         {
-            if (!IsRecording || CurrentSession == null)
+            if (!IsRecording || IsPaused || CurrentSession == null)
                 return;
             CurrentSession.cameraStates.Add(new CameraState
             {
-                timeSinceStart = Time.realtimeSinceStartup - CurrentSession.recordingStartRealtime,
+                timeSinceStart = GetEffectiveRecordingTimeSeconds(),
                 position = position,
                 rotation = rotation
             });
@@ -392,8 +414,47 @@ namespace ReplayMod.RecordManager
 
         internal void PauseRecording()
         {
-            IsPaused = true;
+            if (!IsRecording || CurrentSession == null || IsPaused)
+                return;
 
+            IsPaused = true;
+            _pauseStartedRealtime = Time.realtimeSinceStartup;
+        }
+
+        private float GetEffectiveRecordingTimeSeconds()
+        {
+            if (CurrentSession == null)
+                return 0f;
+
+            float elapsedSinceStart = Time.realtimeSinceStartup - CurrentSession.recordingStartRealtime;
+            float inProgressPause = 0f;
+            if (IsPaused && _pauseStartedRealtime >= 0f)
+            {
+                inProgressPause = Time.realtimeSinceStartup - _pauseStartedRealtime;
+            }
+
+            return Mathf.Max(0f, elapsedSinceStart - _totalPausedDurationSeconds - inProgressPause);
+        }
+
+        private void EndPauseSegmentIfNeeded(string reason)
+        {
+            if (_pauseStartedRealtime < 0f || CurrentSession == null)
+                return;
+
+            float pauseEndRealtime = Time.realtimeSinceStartup;
+            float rawStart = Mathf.Max(0f, _pauseStartedRealtime - CurrentSession.recordingStartRealtime);
+            float rawEnd = Mathf.Max(rawStart, pauseEndRealtime - CurrentSession.recordingStartRealtime);
+            _totalPausedDurationSeconds += rawEnd - rawStart;
+
+            CurrentSession.excludedSegments.Add(new RecordingExcludedSegment
+            {
+                reason = reason,
+                excludeFromPlayback = true,
+                startTimeRawSinceStart = rawStart,
+                endTimeRawSinceStart = rawEnd
+            });
+
+            _pauseStartedRealtime = -1f;
         }
     }
 }
