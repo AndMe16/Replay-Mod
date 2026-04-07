@@ -67,6 +67,7 @@ namespace ReplayMod.RecordManager
     public class RecordingSession
     {
         public int version = 1;
+        public bool timestampsNormalizedForPlayback = false;
         public string sessionName;
         public float recordingStartRealtime;
         public DateTime savingTime;
@@ -187,6 +188,7 @@ namespace ReplayMod.RecordManager
             try
             {
                 CurrentSession.version = 2; // Version 2 adds excludedSegments and pause-adjusted timestamps.
+                CurrentSession.timestampsNormalizedForPlayback = true;
                 CurrentSession.sessionName = $"recording_{DateTime.Now:yyyyMMdd_HHmmss}";
                 CurrentSession.savingTime = DateTime.Now;
                 CurrentSession.duration = TimeSpan.FromSeconds(GetEffectiveRecordingTimeSeconds());

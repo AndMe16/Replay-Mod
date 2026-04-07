@@ -96,10 +96,17 @@ namespace ReplayMod.PlaybackManager
             session.cameraStates ??= new List<CameraState>();
             session.excludedSegments ??= new List<RecordingExcludedSegment>();
 
-            if (session.version >= 2 && session.excludedSegments.Count > 0 && SessionTimestampsLookRaw(session))
+            bool shouldNormalizeV2Session =
+                session.version >= 2 &&
+                !session.timestampsNormalizedForPlayback &&
+                session.excludedSegments.Count > 0 &&
+                SessionTimestampsLookRaw(session);
+
+            if (shouldNormalizeV2Session)
             {
                 Plugin.logger.LogInfo("[PlaybackManager] Normalizing raw v2 timestamps using excluded segments.");
                 NormalizeSessionTimestampsUsingExcludedSegments(session);
+                session.timestampsNormalizedForPlayback = true;
             }
 
             float computedDuration = ComputeDurationFromCapturedData(session);
