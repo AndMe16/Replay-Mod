@@ -74,7 +74,7 @@ namespace ReplayMod.GUIDrawer
                 gui.AddSpacing();
 
                 float speed = manager.SpeedMultiplier;
-                gui.NumericEdit(ref speed, step: 0.25f, size: new ImSize(gui.GetLayoutWidth()*0.3f, gui.GetRowHeight()), flags: ImNumericEditFlag.PlusMinus, format: "F2" , min:0.25f, max: 10);
+                gui.NumericEdit(ref speed, step: 0.25f, size: new ImSize(gui.GetLayoutWidth()*0.3f, gui.GetRowHeight()), flags: ImNumericEditFlag.PlusMinus, format: "F2" , min:0.25f, max: 50);
                 manager.SpeedMultiplier = speed;
 
                 gui.AddSpacing();
