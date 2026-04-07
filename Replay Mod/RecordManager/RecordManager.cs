@@ -78,7 +78,8 @@ namespace ReplayMod.RecordManager
     {
         public static RecordManager Instance { get; } = new RecordManager();
 
-        public bool IsRecording { get; private set; }
+        public bool IsRecording { get; private set; } = false;
+        public bool IsPaused { get; private set; } = false;
         public RecordingSession CurrentSession { get; private set; }
 
         private int _nextSequence;
@@ -115,6 +116,30 @@ namespace ReplayMod.RecordManager
             IsRecording = true;
 
             Plugin.logger.LogInfo("[RecorderManager] Recording started.");
+        }
+
+        public void ResumeRecording()
+        {
+            if (CurrentSession == null)
+            {
+                Plugin.logger.LogWarning("[RecorderManager] ResumeRecording ignored, no existing session to resume.");
+                return;
+            }
+
+            central = GameObject.FindObjectOfType<LEV_LevelEditorCentral>();
+
+            if (central == null)
+                return;
+
+            Camera cam = central.cam.cameraCamera;
+
+            if (cam != null && cam.GetComponent<CameraRecorder>() == null)
+            {
+                cam.gameObject.AddComponent<CameraRecorder>();
+            }
+
+            IsPaused = false;
+            Plugin.logger.LogInfo("[RecorderManager] Recording resumed.");
         }
 
         public void StopRecording()
@@ -313,6 +338,12 @@ namespace ReplayMod.RecordManager
                 return;
             }
 
+            if (IsPaused)
+            {
+                Plugin.logger.LogInfo($"[RecorderManager] CaptureHistoryTraversal skipped: recording is paused for {eventKind}.");
+                return;
+            }
+
             if (undoRedo.currentHistoryPosition < 0 || undoRedo.currentHistoryPosition >= undoRedo.historyList.Count)
             {
                 Plugin.logger.LogWarning($"[RecorderManager] CaptureHistoryTraversal skipped: history position out of range for {eventKind} ({undoRedo.currentHistoryPosition}/{undoRedo.historyList.Count}).");
@@ -357,6 +388,12 @@ namespace ReplayMod.RecordManager
                 position = position,
                 rotation = rotation
             });
+        }
+
+        internal void PauseRecording()
+        {
+            IsPaused = true;
+
         }
     }
 }

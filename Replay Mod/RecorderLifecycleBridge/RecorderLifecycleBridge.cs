@@ -1,5 +1,6 @@
 ﻿using Replay_Mod;
 using ReplayMod.PlaybackManager;
+using System;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 using ZeepSDK.LevelEditor;
@@ -26,13 +27,13 @@ namespace ReplayMod.RecorderLifecycleBridge
 
             _initialized = true;
 
-            SceneManager.sceneLoaded += OnEnteredLevelEditor;
-            SceneManager.sceneUnloaded += OnExitedLevelEditor;
+            SceneManager.sceneLoaded += OnSceneLoaded;
+            SceneManager.sceneUnloaded += OnSceneUnloaded;
 
             Plugin.logger.LogInfo("[RecorderLifecycleBridge] Subscribed to level editor lifecycle events.");
         }
 
-        private static void OnEnteredLevelEditor(Scene scene, LoadSceneMode mode)
+        private static void OnSceneLoaded(Scene scene, LoadSceneMode mode)
         {
             if (scene.name == "LevelEditor2")
             {
@@ -40,6 +41,12 @@ namespace ReplayMod.RecorderLifecycleBridge
 
                 if (central == null)
                     return;
+
+                if (RecordManager.RecordManager.Instance.IsRecording && RecordManager.RecordManager.Instance.IsPaused)
+                {
+                    Plugin.logger.LogInfo("[RecorderLifecycleBridge] Entered level editor while paused, resuming recording");
+                    RecordManager.RecordManager.Instance.ResumeRecording();
+                }
 
                 if (isPlayback)
                 {
@@ -61,6 +68,21 @@ namespace ReplayMod.RecorderLifecycleBridge
                 }
                 new GameObject("ReplayModInputHandler").AddComponent<InputHandler.InputHandler>();
             }
+
+            else if (scene.name == "GameScene" && LevelEditorApi.IsTestingLevel && RecordManager.RecordManager.Instance.IsRecording)
+            {
+                Plugin.logger.LogInfo("[RecorderLifecycleBridge] Entered play mode while recording, pausing recording");
+                RecordManager.RecordManager.Instance.PauseRecording();
+            }
+
+            else
+            {
+                if (RecordManager.RecordManager.Instance.IsRecording)
+                {
+                    Plugin.logger.LogInfo("[RecorderLifecycleBridge] Loaded another scene while recording editor");
+                    RecordManager.RecordManager.Instance.StopRecording();
+                }
+            }
         }
 
         private static void DisableSelection()
@@ -74,18 +96,21 @@ namespace ReplayMod.RecorderLifecycleBridge
             central.tool.DisableAllTools();
         }
 
-        private static void OnExitedLevelEditor(Scene scene)
+        private static void OnSceneUnloaded(Scene scene)
         {
             if (scene.name == "LevelEditor2")
             {
-                isInPlaybackScene = false;
-                central = null;
-
-                if (PlaybackManager.PlaybackManager.Instance.IsPlaying)
+                if (isInPlaybackScene)
                 {
-                    PlaybackManager.PlaybackManager.Instance.StopPlayback();
+                    isInPlaybackScene = false;
+                    central = null;
+
+                    if (PlaybackManager.PlaybackManager.Instance.IsPlaying)
+                    {
+                        PlaybackManager.PlaybackManager.Instance.StopPlayback();
+                    }
+                    GameObject.Destroy(GameObject.Find("PauseMenuHandler"));
                 }
-                GameObject.Destroy(GameObject.Find("PauseMenuHandler"));
             }
         }
 
@@ -96,8 +121,8 @@ namespace ReplayMod.RecorderLifecycleBridge
 
             _initialized = false;
 
-            SceneManager.sceneLoaded -= OnEnteredLevelEditor;
-            SceneManager.sceneUnloaded -= OnExitedLevelEditor;
+            SceneManager.sceneLoaded -= OnSceneLoaded;
+            SceneManager.sceneUnloaded -= OnSceneUnloaded;
 
             Plugin.logger.LogInfo("[RecorderLifecycleBridge] Unsubscribed from level editor lifecycle events.");
         }
