@@ -33,6 +33,10 @@ namespace ReplayMod.PlaybackManager
         public bool followCamera = false;
         private LEV_MoveCamera editorCamera;
 
+        private const bool ForceFullConnectionRefreshForDebug = false;
+        private const bool IncludeConnectedNeighborsInTargetedRefresh = true;
+
+
         public float SpeedMultiplier
         {
             get => _speedMultiplier;
@@ -228,7 +232,8 @@ namespace ReplayMod.PlaybackManager
                     isLoadSuccessful = false;
                 }
             }
-           
+
+            RefreshConnectionsForAllBlocks();
             PopulateAllBlocksDictionary();
         }
         private void PrimeGeneralLevelLoader()
@@ -496,6 +501,7 @@ namespace ReplayMod.PlaybackManager
                 return;
             }
 
+            HashSet<string> changedUids = new HashSet<string>();
 
             foreach (RecordedSingleChange change in evt.changes)
             {
@@ -518,6 +524,8 @@ namespace ReplayMod.PlaybackManager
                     DestroyExistingBlock(uid);
                     continue;
                 }
+
+                changedUids.Add(uid);
 
                 if (string.IsNullOrEmpty(targetJson))
                 {
@@ -548,7 +556,9 @@ namespace ReplayMod.PlaybackManager
                 CreateBlockFromJson(blockJson, uid);
             }
 
-            RefreshConnectionsForAllBlocks();
+
+            RefreshConnectionsForBlocks(changedUids, evt.changes, applyBefore);
+
             Reselect(evt, applyBefore);
         }
 
@@ -637,6 +647,99 @@ namespace ReplayMod.PlaybackManager
                 Plugin.logger.LogError($"[PlaybackManager] RefreshConnectionsForAllBlocks encountered an issue: {ex}");
             }
         }
+
+        private void RefreshConnectionsForBlocks(
+            HashSet<string> changedUids,
+            List<RecordedSingleChange> changes,
+            bool applyBefore)
+        {
+            if (changedUids == null || changedUids.Count == 0)
+                return;
+
+            try
+            {
+                HashSet<string> alreadyLoadedProperties = new HashSet<string>();
+                HashSet<string> uidsToRefresh = new HashSet<string>(changedUids);
+
+                if (changes != null)
+                {
+                    for (int i = 0; i < changes.Count; i++)
+                    {
+                        RecordedSingleChange change = changes[i];
+                        if (change == null || string.IsNullOrEmpty(change.uid))
+                            continue;
+
+                        string targetJson = applyBefore ? change.beforeJson : change.afterJson;
+                        if (string.IsNullOrEmpty(targetJson))
+                            continue;
+
+                        BlockProperties block = TryGetLiveBlock(change.uid);
+                        if (block == null)
+                            continue;
+
+                        BlockPropertyJSON blockJson = LEV_UndoRedo.GetJSONblock(targetJson);
+                        if (blockJson == null || blockJson.d == null)
+                            continue;
+
+                        block.customBlockEditProperties = blockJson.d.Clone();
+
+                        List<BlockEdit_v18> blockEdits = block.GetAllBlockEditV18sFromThisBlock();
+                        for (int j = 0; j < blockEdits.Count; j++)
+                        {
+                            BlockEdit_v18 blockEdit = blockEdits[j];
+                            if (blockEdit == null || !blockEdit.HasConnectors())
+                                continue;
+
+                            BlockEdit_v18_Connector_Base connectorBase = blockEdit.GetBlockEditV18ConnectionBase();
+                            if (connectorBase == null)
+                                continue;
+
+                            connectorBase.LoadProperties();
+                            alreadyLoadedProperties.Add(change.uid);
+
+                            IEnumerable<string> connectedUids =
+                                connectorBase.GetAllConnectedUIDsOnEntireBlockEdit_ButAlsoYourOwnBlockUID();
+                            if (connectedUids != null)
+                            {
+                                uidsToRefresh.UnionWith(connectedUids);
+                            }
+                        }
+                    }
+                }
+
+                foreach (string uid in uidsToRefresh)
+                {
+                    BlockProperties block = TryGetLiveBlock(uid);
+                    if (block != null)
+                    {
+                        if (!alreadyLoadedProperties.Contains(uid))
+                        {
+                            block.LoadOnlyPropertyScripts();
+                        }
+                    }
+
+                    List<BlockEdit_v18_Connector_Base> connectors =
+                        StaticConnectorTracker.GetAllBlockEditV18ConnectorsOnThisBlock(uid);
+
+                    if (connectors == null)
+                        continue;
+
+                    for (int i = 0; i < connectors.Count; i++)
+                    {
+                        BlockEdit_v18_Connector_Base connector = connectors[i];
+                        if (connector == null)
+                            continue;
+
+                        connector.ForceRedrawConnectionVisualizers();
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Plugin.logger.LogError($"[PlaybackManager] RefreshConnectionsForBlocks encountered an issue: {ex}");
+            }
+        }
+
 
         private void Reselect(RecordedEditorEvent evt, bool applyBefore)
         {
@@ -729,7 +832,6 @@ namespace ReplayMod.PlaybackManager
 
             try
             {
-                Plugin.logger.LogInfo($"[PlaybackManager] Attempting in-place update for block UID {existingBlock.UID}.");
                 existingBlock.properties.Clear();
                 existingBlock.LoadProperties_v15(targetValues, false);
                 existingBlock.isLoading = false;

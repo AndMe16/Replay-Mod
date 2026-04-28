@@ -113,10 +113,13 @@ namespace ReplayMod.RecordManager
             if (central == null)
                 return;
 
+            if (central.manager == null || central.manager.loader == null)
+                return;
+
             CurrentSession = new RecordingSession
             {
                 recordingStartRealtime = Time.realtimeSinceStartup,
-                levelStateAtStart = central.saveload.ConvertCurrentLevelStateToJSON_v15()
+                levelStateAtStart = central.manager.loader.GetLevelJSON(central.saveload.ConvertCurrentLevelStateToJSON_v15_string()),
             };
 
             Camera cam = central.cam.cameraCamera;
