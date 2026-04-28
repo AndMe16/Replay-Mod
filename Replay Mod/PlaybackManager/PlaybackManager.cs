@@ -33,8 +33,6 @@ namespace ReplayMod.PlaybackManager
         public bool followCamera = false;
         private LEV_MoveCamera editorCamera;
 
-        private const bool ForceFullConnectionRefreshForDebug = false;
-        private const bool IncludeConnectedNeighborsInTargetedRefresh = true;
 
 
         public float SpeedMultiplier
@@ -912,8 +910,26 @@ namespace ReplayMod.PlaybackManager
         {
             StopFollowingTimeline();
 
+            if (Session == null)
+                return;
+
+
             int targetIndex = FindEventIndexForTime(targetTime);
 
+            if (targetIndex != CurrentEventIndex)
+            {
+                if (!TryApplyMergedScrubRange(targetIndex))
+                {
+                    ScrubLegacy(targetTime, targetIndex);
+                }
+            }
+
+            UpdateGhostFromTimeline(targetTime);
+            _currentSessionTime = targetTime;
+        }
+
+        private void ScrubLegacy(float _targetTime, int targetIndex)
+        {
             if (targetIndex > CurrentEventIndex)
             {
                 // Step forward
@@ -932,11 +948,265 @@ namespace ReplayMod.PlaybackManager
                         break;
                 }
             }
-
-            UpdateGhostFromTimeline(targetTime);
-
-            _currentSessionTime = targetTime;
         }
+
+        private class MergedBlockChange
+        {
+            public string uid;
+            public string targetJson;
+            public bool shouldRemove;
+            public bool shouldCreate;
+        }
+
+        private class MergedFloorChange
+        {
+            public bool hasValue;
+            public int materialIndex;
+        }
+
+        private class MergedSkyboxChange
+        {
+            public bool hasValue;
+            public int skyboxIndex;
+            public bool simulateLofi;
+            public string customSkyboxJson;
+        }
+
+        private bool TryApplyMergedScrubRange(int targetIndex)
+        {
+            if (Session == null || targetIndex == CurrentEventIndex)
+                return true;
+
+            int fromIndex;
+            int toIndex;
+            bool inverse;
+            if (targetIndex > CurrentEventIndex)
+            {
+                fromIndex = CurrentEventIndex + 1;
+                toIndex = targetIndex;
+                inverse = false;
+            }
+            else
+            {
+                fromIndex = CurrentEventIndex;
+                toIndex = targetIndex + 1;
+                inverse = true;
+            }
+
+            Dictionary<string, MergedBlockChange> mergedBlocks = new Dictionary<string, MergedBlockChange>();
+            List<string> finalSelection = null;
+            MergedFloorChange mergedFloor = new MergedFloorChange();
+            MergedSkyboxChange mergedSkybox = new MergedSkyboxChange();
+
+            if (targetIndex > CurrentEventIndex)
+            {
+                for (int i = fromIndex; i <= toIndex; i++)
+                {
+                    MergeEventIntoDelta(Session.events[i], inverse, mergedBlocks, mergedFloor, mergedSkybox, ref finalSelection);
+                }
+            }
+            else
+            {
+                for (int i = fromIndex; i >= toIndex; i--)
+                {
+                    MergeEventIntoDelta(Session.events[i], inverse, mergedBlocks, mergedFloor, mergedSkybox, ref finalSelection);
+                }
+            }
+
+            try
+            {
+                ApplyMergedBlockChanges(mergedBlocks);
+                if (mergedFloor.hasValue)
+                {
+                    central.painter.SetLoadGroundMaterial(mergedFloor.materialIndex);
+                }
+
+                if (mergedSkybox.hasValue)
+                {
+                    ApplyMergedSkyboxChange(mergedSkybox);
+                }
+
+                if (finalSelection != null)
+                {
+                    ApplySelectionByUids(finalSelection);
+                }
+
+                CurrentEventIndex = targetIndex;
+                return true;
+            }
+            catch (Exception ex)
+            {
+                Plugin.logger.LogError($"[PlaybackManager] Failed merged scrub from {CurrentEventIndex} to {targetIndex}: {ex}");
+                return false;
+            }
+        }
+
+        private void MergeEventIntoDelta(
+            RecordedEditorEvent evt,
+            bool inverse,
+            Dictionary<string, MergedBlockChange> mergedBlocks,
+            MergedFloorChange mergedFloor,
+            MergedSkyboxChange mergedSkybox,
+            ref List<string> finalSelection)
+        {
+            if (evt == null)
+                return;
+
+            bool applyBefore = ShouldApplyBefore(evt);
+            if (inverse)
+                applyBefore = !applyBefore;
+
+            switch (evt.changeType)
+            {
+                case "block":
+                case "connection":
+                    MergeBlockEvent(evt, applyBefore, mergedBlocks);
+                    finalSelection = GetSelectionFromEvent(evt, applyBefore);
+                    break;
+                case "floor":
+                    MergeFloorEvent(evt, applyBefore, mergedFloor);
+                    break;
+                case "skybox":
+                    MergeSkyboxEvent(evt, applyBefore, mergedSkybox);
+                    break;
+                case "selection":
+                    finalSelection = GetSelectionFromEvent(evt, applyBefore);
+                    break;
+            }
+        }
+
+        private void MergeBlockEvent(RecordedEditorEvent evt, bool applyBefore, Dictionary<string, MergedBlockChange> mergedBlocks)
+        {
+            if (evt.changes == null)
+                return;
+
+            for (int i = 0; i < evt.changes.Count; i++)
+            {
+                RecordedSingleChange change = evt.changes[i];
+                if (change == null || string.IsNullOrEmpty(change.uid))
+                    continue;
+
+                string targetJson = applyBefore ? change.beforeJson : change.afterJson;
+                bool isAddedChange = applyBefore ? change.wasRemoved : change.wasAdded;
+                bool isRemovedChange = applyBefore ? change.wasAdded : change.wasRemoved;
+
+                MergedBlockChange merged = new MergedBlockChange
+                {
+                    uid = change.uid,
+                    shouldRemove = isRemovedChange,
+                    shouldCreate = isAddedChange,
+                    targetJson = targetJson
+                };
+
+                mergedBlocks[change.uid] = merged;
+            }
+        }
+
+        private void MergeFloorEvent(RecordedEditorEvent evt, bool applyBefore, MergedFloorChange mergedFloor)
+        {
+            if (evt.changes == null || evt.changes.Count == 0)
+                return;
+
+            RecordedSingleChange change = evt.changes[0];
+            mergedFloor.hasValue = true;
+            mergedFloor.materialIndex = applyBefore ? change.intBefore : change.intAfter;
+        }
+
+        private void MergeSkyboxEvent(RecordedEditorEvent evt, bool applyBefore, MergedSkyboxChange mergedSkybox)
+        {
+            if (evt.changes == null || evt.changes.Count == 0)
+                return;
+
+            RecordedSingleChange change = evt.changes[0];
+            mergedSkybox.hasValue = true;
+            mergedSkybox.skyboxIndex = applyBefore ? change.intBefore : change.intAfter;
+            mergedSkybox.simulateLofi = applyBefore ? change.boolBefore : change.boolAfter;
+            mergedSkybox.customSkyboxJson = applyBefore ? change.customSkyboxBefore : change.customSkyboxAfter;
+        }
+
+        private List<string> GetSelectionFromEvent(RecordedEditorEvent evt, bool applyBefore)
+        {
+            if (evt == null)
+                return new List<string>();
+
+            List<string> source = applyBefore ? evt.beforeSelectionUIDs : evt.afterSelectionUIDs;
+            return source != null ? new List<string>(source) : new List<string>();
+        }
+
+        private void ApplyMergedBlockChanges(Dictionary<string, MergedBlockChange> mergedBlocks)
+        {
+            central.selection.DeselectAllBlocks(false, "[ReplayMod]Playback");
+            foreach (KeyValuePair<string, MergedBlockChange> kvp in mergedBlocks)
+            {
+                MergedBlockChange merged = kvp.Value;
+                if (merged == null || string.IsNullOrEmpty(merged.uid))
+                    continue;
+
+                if (merged.shouldRemove)
+                {
+                    DestroyExistingBlock(merged.uid);
+                    continue;
+                }
+
+                if (string.IsNullOrEmpty(merged.targetJson))
+                    continue;
+
+                BlockPropertyJSON blockJson = LEV_UndoRedo.GetJSONblock(merged.targetJson);
+                if (blockJson == null)
+                    continue;
+
+                if (merged.shouldCreate)
+                {
+                    DestroyExistingBlock(merged.uid);
+                    CreateBlockFromJson(blockJson, merged.uid);
+                    continue;
+                }
+
+                BlockProperties existingBlock = TryGetLiveBlock(merged.uid);
+                if (existingBlock != null && DoesBlockTypeMatchJson(existingBlock, blockJson))
+                {
+                    if (TryApplyBlockUpdateInPlace(existingBlock, blockJson))
+                        continue;
+                }
+
+                DestroyExistingBlock(merged.uid);
+                CreateBlockFromJson(blockJson, merged.uid);
+            }
+
+            if (mergedBlocks.Count > 0)
+            {
+                RefreshConnectionsForAllBlocks();
+            }
+        }
+
+        private void ApplyMergedSkyboxChange(MergedSkyboxChange mergedSkybox)
+        {
+            SkyboxCreator_DataObject customSkybox = null;
+            if (!string.IsNullOrEmpty(mergedSkybox.customSkyboxJson))
+            {
+                customSkybox = CustomSkyboxHelpers.ConvertFromJSON(mergedSkybox.customSkyboxJson);
+            }
+
+            central.skybox.simulateLofi = mergedSkybox.simulateLofi;
+            central.skybox.SetToSkybox(mergedSkybox.skyboxIndex, true, customSkybox, true, false);
+        }
+
+        private void ApplySelectionByUids(List<string> selectedUids)
+        {
+            central.selection.DeselectAllBlocks(false, "[ReplayMod]Playback");
+            if (selectedUids == null)
+                return;
+
+            for (int i = 0; i < selectedUids.Count; i++)
+            {
+                BlockProperties block = TryGetLiveBlock(selectedUids[i]);
+                if (block != null)
+                {
+                    central.selection.SelectionPaint(block);
+                }
+            }
+        }
+
 
         private int FindEventIndexForTime(float targetTime)
         {
