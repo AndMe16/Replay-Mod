@@ -1,4 +1,5 @@
-﻿using Imui.Controls;
+﻿using BugsnagUnity.Payload;
+using Imui.Controls;
 using Imui.Core;
 using Imui.Rendering;
 using Replay_Mod;
@@ -20,6 +21,8 @@ namespace ReplayMod.GUIDrawer
         private string selectedRecording = null;
 
         private int _selectedIndex = -1;
+
+        private string info;
 
         public void OnZeepGUI(ImGui gui)
         {
@@ -158,8 +161,14 @@ namespace ReplayMod.GUIDrawer
 
                 if (gui.ListItem(ref _selectedIndex, i, values[i]))
                 {
-                    Plugin.logger.LogInfo($"[GUIDrawer] Clicked on {values[i]}");
                     selectedRecording = values[i];
+                    var session = FilesManager.FilesManager.LoadRecordingSession(Plugin.Storage, selectedRecording);
+                    if (session != null)
+                        info = $"Name: {selectedRecording}\n" +
+                              $"Date: {session.savingTime:G}\n" +
+                              $"Duration: {session.duration:hh':'mm':'ss}\n" +
+                              $"Actions recorded: {session.eventCount}";
+
                 }
             }
 
@@ -173,16 +182,8 @@ namespace ReplayMod.GUIDrawer
 
             if (selectedRecording != null)
             {
-                var session = FilesManager.FilesManager.LoadRecordingSession(Plugin.Storage, selectedRecording);
-
-                if (session != null)
+                if (info != null)
                 {
-                    string info = $"Name: {selectedRecording}\n" +
-                              $"Date: {session.savingTime:G}\n" +
-                              $"Duration: {session.duration:hh':'mm':'ss}\n" +
-                              $"Actions recorded: {session.eventCount}";
-
-
                     gui.TextEditNonEditable(info, (gui.GetLayoutWidth(), gui.GetTextLineHeight() * 4.5f), true);
                 }
                 else

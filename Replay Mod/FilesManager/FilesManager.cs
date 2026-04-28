@@ -53,8 +53,7 @@ namespace ReplayMod.FilesManager
             {
                 return [];
             }
-
-            return [.. Directory.GetFiles(folderPath).Select(Path.GetFileNameWithoutExtension)];
+            return [.. Directory.GetFiles(folderPath, "recording*.json").Select(Path.GetFileNameWithoutExtension)];
         }
     }
 }
