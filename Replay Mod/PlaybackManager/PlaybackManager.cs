@@ -457,7 +457,6 @@ namespace ReplayMod.PlaybackManager
             if (inverse)
                 applyBefore = !applyBefore;
 
-            central.selection.DeselectAllBlocks(false, "[ReplayMod]Playback");
             switch (evt.changeType)
             {
                 case "block":
@@ -994,7 +993,6 @@ namespace ReplayMod.PlaybackManager
             }
 
             Dictionary<string, MergedBlockChange> mergedBlocks = new Dictionary<string, MergedBlockChange>();
-            List<string> finalSelection = null;
             MergedFloorChange mergedFloor = new MergedFloorChange();
             MergedSkyboxChange mergedSkybox = new MergedSkyboxChange();
 
@@ -1002,14 +1000,14 @@ namespace ReplayMod.PlaybackManager
             {
                 for (int i = fromIndex; i <= toIndex; i++)
                 {
-                    MergeEventIntoDelta(Session.events[i], inverse, mergedBlocks, mergedFloor, mergedSkybox, ref finalSelection);
+                    MergeEventIntoDelta(Session.events[i], inverse, mergedBlocks, mergedFloor, mergedSkybox);
                 }
             }
             else
             {
                 for (int i = fromIndex; i >= toIndex; i--)
                 {
-                    MergeEventIntoDelta(Session.events[i], inverse, mergedBlocks, mergedFloor, mergedSkybox, ref finalSelection);
+                    MergeEventIntoDelta(Session.events[i], inverse, mergedBlocks, mergedFloor, mergedSkybox);
                 }
             }
 
@@ -1024,11 +1022,6 @@ namespace ReplayMod.PlaybackManager
                 if (mergedSkybox.hasValue)
                 {
                     ApplyMergedSkyboxChange(mergedSkybox);
-                }
-
-                if (finalSelection != null)
-                {
-                    ApplySelectionByUids(finalSelection);
                 }
 
                 CurrentEventIndex = targetIndex;
@@ -1046,8 +1039,7 @@ namespace ReplayMod.PlaybackManager
             bool inverse,
             Dictionary<string, MergedBlockChange> mergedBlocks,
             MergedFloorChange mergedFloor,
-            MergedSkyboxChange mergedSkybox,
-            ref List<string> finalSelection)
+            MergedSkyboxChange mergedSkybox)
         {
             if (evt == null)
                 return;
@@ -1061,7 +1053,6 @@ namespace ReplayMod.PlaybackManager
                 case "block":
                 case "connection":
                     MergeBlockEvent(evt, applyBefore, mergedBlocks);
-                    finalSelection = GetSelectionFromEvent(evt, applyBefore);
                     break;
                 case "floor":
                     MergeFloorEvent(evt, applyBefore, mergedFloor);
@@ -1070,7 +1061,6 @@ namespace ReplayMod.PlaybackManager
                     MergeSkyboxEvent(evt, applyBefore, mergedSkybox);
                     break;
                 case "selection":
-                    finalSelection = GetSelectionFromEvent(evt, applyBefore);
                     break;
             }
         }
@@ -1124,18 +1114,9 @@ namespace ReplayMod.PlaybackManager
             mergedSkybox.customSkyboxJson = applyBefore ? change.customSkyboxBefore : change.customSkyboxAfter;
         }
 
-        private List<string> GetSelectionFromEvent(RecordedEditorEvent evt, bool applyBefore)
-        {
-            if (evt == null)
-                return new List<string>();
-
-            List<string> source = applyBefore ? evt.beforeSelectionUIDs : evt.afterSelectionUIDs;
-            return source != null ? new List<string>(source) : new List<string>();
-        }
 
         private void ApplyMergedBlockChanges(Dictionary<string, MergedBlockChange> mergedBlocks)
         {
-            central.selection.DeselectAllBlocks(false, "[ReplayMod]Playback");
             foreach (KeyValuePair<string, MergedBlockChange> kvp in mergedBlocks)
             {
                 MergedBlockChange merged = kvp.Value;
@@ -1189,22 +1170,6 @@ namespace ReplayMod.PlaybackManager
 
             central.skybox.simulateLofi = mergedSkybox.simulateLofi;
             central.skybox.SetToSkybox(mergedSkybox.skyboxIndex, true, customSkybox, true, false);
-        }
-
-        private void ApplySelectionByUids(List<string> selectedUids)
-        {
-            central.selection.DeselectAllBlocks(false, "[ReplayMod]Playback");
-            if (selectedUids == null)
-                return;
-
-            for (int i = 0; i < selectedUids.Count; i++)
-            {
-                BlockProperties block = TryGetLiveBlock(selectedUids[i]);
-                if (block != null)
-                {
-                    central.selection.SelectionPaint(block);
-                }
-            }
         }
 
 
