@@ -504,6 +504,8 @@ namespace ReplayMod.PlaybackManager
 
                 string uid = change.uid;
                 string targetJson = applyBefore ? change.beforeJson : change.afterJson;
+                bool isAddedChange = applyBefore ? change.wasRemoved : change.wasAdded;
+                bool isRemovedChange = applyBefore ? change.wasAdded : change.wasRemoved;
 
                 if (string.IsNullOrEmpty(uid))
                 {
@@ -511,7 +513,11 @@ namespace ReplayMod.PlaybackManager
                     continue;
                 }
 
-                DestroyExistingBlock(uid);
+                if (isRemovedChange)
+                {
+                    DestroyExistingBlock(uid);
+                    continue;
+                }
 
                 if (string.IsNullOrEmpty(targetJson))
                 {
@@ -519,7 +525,27 @@ namespace ReplayMod.PlaybackManager
                 }
 
                 BlockPropertyJSON blockJson = LEV_UndoRedo.GetJSONblock(targetJson);
-                BlockProperties newBlock = CreateBlockFromJson(blockJson, uid);
+                if (blockJson == null)
+                {
+                    Plugin.logger.LogWarning($"[PlaybackManager] Failed to parse block JSON for UID {uid}.");
+                    continue;
+                }
+
+                if (isAddedChange)
+                {
+                    CreateBlockFromJson(blockJson, uid);
+                    continue;
+                }
+
+                BlockProperties existingBlock = TryGetLiveBlock(uid);
+                if (existingBlock != null && DoesBlockTypeMatchJson(existingBlock, blockJson))
+                {
+                    if (TryApplyBlockUpdateInPlace(existingBlock, blockJson))
+                        continue;
+                }
+
+                DestroyExistingBlock(uid);
+                CreateBlockFromJson(blockJson, uid);
             }
 
             RefreshConnectionsForAllBlocks();
@@ -673,6 +699,48 @@ namespace ReplayMod.PlaybackManager
 
             allBlocksDictionary.Remove(uid);
             UnityEngine.Object.Destroy(existing.gameObject);
+        }
+
+        private bool DoesBlockTypeMatchJson(BlockProperties existingBlock, BlockPropertyJSON targetValues)
+        {
+            if (existingBlock == null || targetValues == null)
+                return false;
+
+            try
+            {
+                BlockProperties targetPrefab = central.manager.loader.globalBlockList.blocks[targetValues.i];
+                if (targetPrefab == null)
+                    return false;
+
+                return existingBlock.GetType() == targetPrefab.GetType() &&
+                       existingBlock.gameObject.name == targetPrefab.gameObject.name;
+            }
+            catch (Exception ex)
+            {
+                Plugin.logger.LogWarning($"[PlaybackManager] Could not compare block types for UID {existingBlock.UID}: {ex.Message}");
+                return false;
+            }
+        }
+
+        private bool TryApplyBlockUpdateInPlace(BlockProperties existingBlock, BlockPropertyJSON targetValues)
+        {
+            if (existingBlock == null || targetValues == null)
+                return false;
+
+            try
+            {
+                Plugin.logger.LogInfo($"[PlaybackManager] Attempting in-place update for block UID {existingBlock.UID}.");
+                existingBlock.properties.Clear();
+                existingBlock.LoadProperties_v15(targetValues, false);
+                existingBlock.isLoading = false;
+                existingBlock.LoadOnlyPropertyScripts();
+                return true;
+            }
+            catch (Exception ex)
+            {
+                Plugin.logger.LogWarning($"[PlaybackManager] In-place block update failed for UID {existingBlock.UID}: {ex.Message}");
+                return false;
+            }
         }
 
         private BlockProperties CreateBlockFromJson(BlockPropertyJSON newBlockValues, string uid)
